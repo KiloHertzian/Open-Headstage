@@ -1,0 +1,48 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "main" ] # Or whatever your main branch is called
+  pull_request:
+    branches: [ "main" ] # Or whatever your main branch is called
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy # Add other components like 'llvm-tools-preview' if needed later
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Optional: specify a cache key prefix if you have multiple workflows
+          # prefix-key: "my-workflow-specific-prefix"
+          # Optional: share the cache between jobs (if you had multiple jobs in this workflow)
+          # shared-key: "shared-cache-key"
+          save-if: ${{ github.ref == 'refs/heads/main' }} # Only save cache on pushes to main
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (Linter)
+        run: cargo clippy --all-targets --all-features -- -D warnings # Fail on warnings
+
+      - name: Build (debug)
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      # Optional: Build (release) - uncomment if you want to ensure release builds work too
+      # - name: Build (release)
+      #   run: cargo build --release --verbose
