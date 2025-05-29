@@ -28,3 +28,45 @@ Phase 1: Anechoic Core Development (Project Initialization)
 
 ## Roadmap
 (Detailed roadmap to be developed)
+
+graph TD
+    A[Stereo Audio Input] --> B{Binaural Convolution Engine};
+    C[SOFA HRTF Manager] -.->|Provides 4 HRIRs| B;
+    B --> D(Anechoic Binaural Output);
+    D --> E{Speaker Emulation EQ};
+    E --> F{Room Simulation Module};
+    F --> G{Headphone Equalization};
+    G --> H{Output Gain & Bypass};
+    H --> I[Stereo Audio Output];
+
+    J[User Interface (UI)] --> K[Plugin Parameters]; // Changed K to a standard box and connection
+    K -.-> C;
+    K -.-> B;
+    K -.-> E;
+    K -.-> F;
+    K -.-> G;
+    K -.-> H;
+
+    subgraph "Phase 1: Anechoic Core (MVP)"
+        B
+        C
+        G
+        H
+    end
+
+    subgraph "Phase 2: Enhancements"
+        E
+        F
+    end
+
+    style A fill:#lightgreen,stroke:#333,stroke-width:2px
+    style I fill:#lightgreen,stroke:#333,stroke-width:2px
+    style B fill:#lightblue,stroke:#333,stroke-width:2px
+    style C fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#skyblue,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style E fill:#wheat,stroke:#333,stroke-width:2px
+    style F fill:#wheat,stroke:#333,stroke-width:2px
+    style G fill:#lightblue,stroke:#333,stroke-width:2px
+    style H fill:#lightgray,stroke:#333,stroke-width:2px
+    style J fill:#whitesmoke,stroke:#333,stroke-width:2px
+    style K fill:#whitesmoke,stroke:#333,stroke-width:2px
