@@ -20,33 +20,41 @@ Phase 1: Anechoic Core Development (Project Initialization)
 - FFT Library: `RustFFT` (or similar)
 - Resampling: `rubato` (or similar)
 
-## Building from Source
-(Instructions to be added)
-
-## How to Contribute
-(Guidelines to be added)
-
-## Roadmap
-(Detailed roadmap to be developed)
-
+## Bloc Diagram
+```mermaid
 graph TD
-    A[Stereo Audio Input] --> B{Binaural Convolution Engine};
-    C[SOFA HRTF Manager] -.->|Provides 4 HRIRs| B;
-    B --> D(Anechoic Binaural Output);
-    D --> E{Speaker Emulation EQ};
-    E --> F{Room Simulation Module};
-    F --> G{Headphone Equalization};
-    G --> H{Output Gain & Bypass};
-    H --> I[Stereo Audio Output];
+    %% == Node Definitions ==
+    A["Stereo Audio Input"]
+    B["Binaural Convolution Engine"]
+    C["SOFA HRTF Manager"]
+    D["Anechoic Binaural Output"]
+    E["Speaker Emulation EQ"]
+    F["Room Simulation Module"]
+    G["Headphone Equalization"]
+    H["Output Gain & Bypass"]
+    I["Stereo Audio Output"]
+    J["User Interface"]
+    K_Params["Plugin Config"]
 
-    J[User Interface (UI)] --> K[Plugin Parameters]; // Changed K to a standard box and connection
-    K -.-> C;
-    K -.-> B;
-    K -.-> E;
-    K -.-> F;
-    K -.-> G;
-    K -.-> H;
+    %% == Connections ==
+    A --> B;
+    C -.->|Provides 4 HRIRs| B;
+    B --> D;
+    D --> E;
+    E --> F;
+    F --> G;
+    G --> H;
+    H --> I;
 
+    J --> K_Params;
+    K_Params -.-> C;
+    K_Params -.-> B;
+    K_Params -.-> E;
+    K_Params -.-> F;
+    K_Params -.-> G;
+    K_Params -.-> H;
+
+    %% == Subgraphs ==
     subgraph "Phase 1: Anechoic Core (MVP)"
         B
         C
@@ -59,6 +67,7 @@ graph TD
         F
     end
 
+    %% == Styling ==
     style A fill:#lightgreen,stroke:#333,stroke-width:2px
     style I fill:#lightgreen,stroke:#333,stroke-width:2px
     style B fill:#lightblue,stroke:#333,stroke-width:2px
@@ -69,4 +78,14 @@ graph TD
     style G fill:#lightblue,stroke:#333,stroke-width:2px
     style H fill:#lightgray,stroke:#333,stroke-width:2px
     style J fill:#whitesmoke,stroke:#333,stroke-width:2px
-    style K fill:#whitesmoke,stroke:#333,stroke-width:2px
+    style K_Params fill:#whitesmoke,stroke:#333,stroke-width:2px
+```
+
+## Building from Source
+(Instructions to be added)
+
+## How to Contribute
+(Guidelines to be added)
+
+## Roadmap
+(Detailed roadmap to be developed)
