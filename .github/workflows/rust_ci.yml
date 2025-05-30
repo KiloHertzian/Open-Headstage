@@ -31,6 +31,9 @@ jobs:
           # shared-key: "shared-cache-key"
           save-if: ${{ github.ref == 'refs/heads/main' }} # Only save cache on pushes to main
 
+      - name: Update crate index
+        run: cargo update --verbose
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 

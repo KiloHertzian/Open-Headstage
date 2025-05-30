@@ -21,3 +21,12 @@ target/
 # Added by cargo
 
 /target
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# IDE/editor files
+.vscode/
+.idea/
+*.sublime-workspace

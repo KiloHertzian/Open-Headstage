@@ -8,3 +8,12 @@ license = "GPL-3.0-or-later" # SPDX identifier for GPLv3
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "f678c9de6ea81e07818cc7902f71668112f5f13A", features = ["serde"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["nih_plug/vst3", "nih_plug/lv2"]
+vst3 = ["nih_plug/vst3"]
+lv2 = ["nih_plug/lv2"]
