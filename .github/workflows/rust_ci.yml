@@ -13,6 +13,10 @@ jobs:
   build_and_test:
     name: Build and Test
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      GIT_TRACE: "1"
+      GIT_CURL_VERBOSE: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,14 +26,22 @@ jobs:
         with:
           components: rustfmt, clippy # Add other components like 'llvm-tools-preview' if needed later
 
-      - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          # Optional: specify a cache key prefix if you have multiple workflows
-          # prefix-key: "my-workflow-specific-prefix"
-          # Optional: share the cache between jobs (if you had multiple jobs in this workflow)
-          # shared-key: "shared-cache-key"
-          save-if: ${{ github.ref == 'refs/heads/main' }} # Only save cache on pushes to main
+#      - name: Cache Cargo dependencies
+#        uses: Swatinem/rust-cache@v2
+#        with:
+#          # Optional: specify a cache key prefix if you have multiple workflows
+#          # prefix-key: "my-workflow-specific-prefix"
+#          # Optional: share the cache between jobs (if you had multiple jobs in this workflow)
+#          # shared-key: "shared-cache-key"
+#          save-if: ${{ github.ref == 'refs/heads/main' }} # Only save cache on pushes to main
+
+      - name: Clear Cargo cache
+        run: |
+          echo "Clearing Cargo registry cache..."
+          rm -rf ~/.cargo/registry
+          echo "Clearing Cargo git checkout cache..."
+          rm -rf ~/.cargo/git
+          echo "Cache clearing complete."
 
       - name: Update crate index
         run: cargo update --verbose
