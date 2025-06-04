@@ -82,10 +82,10 @@ graph TD
 ```
 
 ## Building from Source
-(Instructions to be added)
+(This section will detail the steps to compile the project, including installing Rust, any system dependencies (like `libmysofa` development files), and running `cargo build`.)
 
 ## How to Contribute
-(Guidelines to be added)
+(This section will outline the process for contributing, such as forking the repository, creating a new branch, submitting pull requests, and linking to the issue templates.)
 
 ## Roadmap
-(Detailed roadmap to be developed)
+(This section will provide a more detailed overview of planned features, future phases, and estimated timelines.)
