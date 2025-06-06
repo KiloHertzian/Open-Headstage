@@ -54,3 +54,8 @@ This document tracks known bugs, significant limitations, and development blocke
         *   Compilation tests confirmed that `bindgen` correctly generates `mysofa_getfilter_float` with an integer return type and that the `err` field in the `MYSOFA_EASY` struct is accessible as expected. No changes to `build.rs` or `bindgen` configuration were needed for this specific fix. The existing `allowlist_type("MYSOFA_EASY")` was sufficient.
 
 ```
+error[E0277]: the trait bound `OpenHeadstagePlugin: ClapPlugin` is not satisfied
+   --> src/lib.rs:273:1
+    |
+273 | nih_export_clap!(OpenHeadstagePlugin);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `ClapPlugin` is not implemented for `OpenHeadstagePlugin`
