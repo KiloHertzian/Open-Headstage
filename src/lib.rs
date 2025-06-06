@@ -1,60 +1,52 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::create_egui_editor; // For UI
+// use nih_plug_egui::create_egui_editor; // Commented out: UI disabled for now
 use std::sync::Arc;
 
-// Make sure our modules are declared
-mod dsp;
-mod sofa;
-mod autoeq_parser; // Assuming this exists from previous step
+// Make sure our modules are declared (minimal for now)
+// mod dsp;
+// mod sofa;
+// mod autoeq_parser;
 
-use crate::dsp::convolution::{ConvolutionEngine, ConvolutionPath};
-use crate::dsp::parametric_eq::{FilterType, StereoParametricEQ}; // Assuming StereoParametricEQ
-use crate::sofa::loader::{MySofa, SofaError};
-// use crate::autoeq_parser::{parse_autoeq_file_content, AutoEqProfile}; // Will be used when params work
+// use crate::dsp::convolution::{ConvolutionEngine, ConvolutionPath}; // Commented out
+// use crate::dsp::parametric_eq::{FilterType}; // StereoParametricEQ also commented
+// use crate::sofa::loader::{MySofa}; // SofaError also commented
+// use crate::autoeq_parser::{parse_autoeq_file_content, AutoEqProfile};
 
-const DEFAULT_SPEAKER_RADIUS: f32 = 1.0; // Default radius in meters
-const NUM_EQ_BANDS: usize = 10;
+// const DEFAULT_SPEAKER_RADIUS: f32 = 1.0; // Commented out
+// const NUM_EQ_BANDS: usize = 10; // Commented out
 
-// --- Intended Parameters Structure (for UI design, known to have compile issues) ---
+// --- Parameters Structure aligned with nih-plug rev a33569b... ---
 #[derive(Params)]
 struct OpenHeadstageParams {
-    #[persist = "output_gain_db"]
-    #[param(name = "Output Gain", unit = "dB", range = (-30.0..=0.0), format = "{:.2} dB")]
+    #[id = "out_gain"]
     pub output_gain: FloatParam,
 
-    #[persist = "speaker_az_left"]
-    #[param(name = "L Azimuth", unit = "°", range = (-90.0..=90.0), format = "{:.1}°")]
+    #[id = "az_l"]
     pub speaker_azimuth_left: FloatParam,
-    #[persist = "speaker_el_left"]
-    #[param(name = "L Elevation", unit = "°", range = (-45.0..=45.0), format = "{:.1}°")]
+    #[id = "el_l"]
     pub speaker_elevation_left: FloatParam,
 
-    #[persist = "speaker_az_right"]
-    #[param(name = "R Azimuth", unit = "°", range = (-90.0..=90.0), format = "{:.1}°")]
+    #[id = "az_r"]
     pub speaker_azimuth_right: FloatParam,
-    #[persist = "speaker_el_right"]
-    #[param(name = "R Elevation", unit = "°", range = (-45.0..=45.0), format = "{:.1}°")]
+    #[id = "el_r"]
     pub speaker_elevation_right: FloatParam,
 
-    #[persist = "sofa_path"]
-    #[param(name = "SOFA File")]
-    pub sofa_file_path: StringParam,
+    // #[id = "sofa_path"]
+    // pub sofa_file_path: StringParam, // Commented out
 
-    #[persist = "eq_enable"]
-    #[param(name = "Enable EQ")]
+    #[id = "eq_enable"]
     pub eq_enable: BoolParam,
 
     // EQ Bands (example for one band, repeat for NUM_EQ_BANDS)
-    // For a real implementation, a macro or helper might generate these
-    #[persist = "eq_band1_enable"] #[param(name = "EQ B1 Enable")] pub eq_band1_enable: BoolParam,
-    #[persist = "eq_band1_type"] #[param(name = "EQ B1 Type", enums(FilterTypeParamEnum))] pub eq_band1_type: EnumParam<FilterTypeParamEnum>,
-    #[persist = "eq_band1_fc"] #[param(name = "EQ B1 Fc", unit = "Hz", range = (20.0..=20000.0), format = "{:.0} Hz")] pub eq_band1_fc: FloatParam,
-    #[persist = "eq_band1_q"] #[param(name = "EQ B1 Q", range = (0.1..=10.0), format = "{:.2}")] pub eq_band1_q: FloatParam,
-    #[persist = "eq_band1_gain"] #[param(name = "EQ B1 Gain", unit = "dB", range = (-24.0..=24.0), format = "{:.1} dB")] pub eq_band1_gain: FloatParam,
-    // ... (conceptually, params for bands 2-10 would follow)
+    #[id = "eq_b1_en"] pub eq_band1_enable: BoolParam,
+    // #[id = "eq_b1_type"] pub eq_band1_type: EnumParam<FilterTypeParamEnum>, // Commented out
+    #[id = "eq_b1_fc"] pub eq_band1_fc: FloatParam,
+    #[id = "eq_b1_q"] pub eq_band1_q: FloatParam,
+    #[id = "eq_b1_gain"] pub eq_band1_gain: FloatParam,
+    // ... (conceptually, params for bands 2-10 would follow with unique IDs)
 }
 
-// Enum for FilterType parameter in UI
+/* // Enum and From impl commented out as eq_band1_type is commented
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Enum)]
 enum FilterTypeParamEnum { Peak, LowShelf, HighShelf }
 
@@ -67,22 +59,27 @@ impl From<FilterTypeParamEnum> for FilterType {
         }
     }
 }
-
+*/
 
 impl Default for OpenHeadstageParams {
     fn default() -> Self {
         Self {
-            output_gain: FloatParam::new("Output Gain", util::db_to_gain(0.0), FloatRange::Linear { min: util::db_to_gain(-30.0), max: util::db_to_gain(0.0) })
-                .with_smoother(SmoothingStyle::Logarithmic(50.0)).with_unit(" dB")
+            output_gain: FloatParam::new(
+                "Output Gain",
+                util::db_to_gain(0.0),
+                FloatRange::Linear { min: util::db_to_gain(-30.0), max: util::db_to_gain(0.0) },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(50.0))
+            .with_unit(" dB")
                 .with_value_to_string(formatters::v2s_f32_gain_to_db(2)).with_string_to_value(formatters::s2v_f32_gain_to_db()),
             speaker_azimuth_left: FloatParam::new("L Azimuth", -30.0, FloatRange::Linear { min: -90.0, max: 90.0 }).with_smoother(SmoothingStyle::Linear(50.0)).with_unit("°"),
             speaker_elevation_left: FloatParam::new("L Elevation", 0.0, FloatRange::Linear { min: -45.0, max: 45.0 }).with_smoother(SmoothingStyle::Linear(50.0)).with_unit("°"),
             speaker_azimuth_right: FloatParam::new("R Azimuth", 30.0, FloatRange::Linear { min: -90.0, max: 90.0 }).with_smoother(SmoothingStyle::Linear(50.0)).with_unit("°"),
             speaker_elevation_right: FloatParam::new("R Elevation", 0.0, FloatRange::Linear { min: -45.0, max: 45.0 }).with_smoother(SmoothingStyle::Linear(50.0)).with_unit("°"),
-            sofa_file_path: StringParam::new("SOFA File", String::new()),
+            // sofa_file_path: StringParam::new("SOFA File", String::new()), // Commented out
             eq_enable: BoolParam::new("Enable EQ", false),
             eq_band1_enable: BoolParam::new("EQ B1 Enable", false),
-            eq_band1_type: EnumParam::new("EQ B1 Type", FilterTypeParamEnum::Peak),
+            // eq_band1_type: EnumParam::new("EQ B1 Type", FilterTypeParamEnum::Peak), // Commented out
             eq_band1_fc: FloatParam::new("EQ B1 Fc", 1000.0, FloatRange::Skewed { min: 20.0, max: 20000.0, factor: FloatRange::skew_factor_logc(1000.0) }).with_unit(" Hz"),
             eq_band1_q: FloatParam::new("EQ B1 Q", 1.0, FloatRange::Linear { min: 0.1, max: 10.0 }),
             eq_band1_gain: FloatParam::new("EQ B1 Gain", 0.0, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
@@ -95,43 +92,40 @@ impl Default for OpenHeadstageParams {
 
 // Main plugin struct
 struct OpenHeadstagePlugin {
-    // Using Arc<()> for params as a workaround for derive(Params) issues.
-    params: Arc<()>, // This will be Arc<OpenHeadstageParams> if derive macro worked
-    editor_state: Arc<EguiState>, // For nih-plug-egui
-
-    convolution_engine: ConvolutionEngine,
-    sofa_loader: Option<MySofa>,
-    // parametric_eq: StereoParametricEQ, // Would be initialized in default()
-    current_sample_rate: f32,
-    // Fields for tracking last parameter values to trigger updates would be here
+    params: Arc<OpenHeadstageParams>,
+    // editor_state: Arc<EguiState>, // Commented out
+    // convolution_engine: ConvolutionEngine, // Commented out
+    // sofa_loader: Option<MySofa>, // Commented out
+    // parametric_eq: StereoParametricEQ, // Commented out
+    // current_sample_rate: f32, // Commented out
 }
 
 impl Default for OpenHeadstagePlugin {
     fn default() -> Self {
         Self {
-            params: Arc::new(()), // Arc::new(OpenHeadstageParams::default()) if derive worked
-            editor_state: EguiState::from_size(400, 300), // Default UI size
-            convolution_engine: ConvolutionEngine::new(),
-            sofa_loader: None,
-            // parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0),
-            current_sample_rate: 44100.0,
+            params: Arc::new(OpenHeadstageParams::default()),
+            // editor_state: EguiState::from_size(400, 300), // Commented out
+            // convolution_engine: ConvolutionEngine::new(), // Commented out
+            // sofa_loader: None, // Commented out
+            // parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0), // Commented out
+            // current_sample_rate: 44100.0, // Commented out
         }
     }
 }
 
-// Placeholder for methods that would interact with full params
+/* // Commented out helper methods block
 impl OpenHeadstagePlugin {
     fn _load_sofa_file(&mut self, _path_str: &str) { /* ... */ }
     fn _update_hrirs(&mut self) { /* ... */ }
     // fn _update_eq_bands(&mut self) { /* ... */ }
 }
-
+*/
 
 impl Plugin for OpenHeadstagePlugin {
     const NAME: &'static str = "Open Headstage";
-    const VENDOR: &'static str = "Open Source Community";
-    const URL: &'static str = "https://example.com";
-    const EMAIL: &'static str = "info@example.com";
+    const VENDOR: &'static str = "Open Source Community"; // Changed to generic
+    const URL: &'static str = "http://example.com"; // Changed to generic
+    const EMAIL: &'static str = "info@example.com"; // Changed to generic
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
     const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
@@ -142,10 +136,12 @@ impl Plugin for OpenHeadstagePlugin {
         },
     ];
 
-    type Params = (); // Using () due to derive(Params) issues on OpenHeadstageParams
+    // If derive(Params) works, this associated type is automatically OpenHeadstageParams
 
     const MIDI_INPUT: MidiConfig = MidiConfig::None;
-    const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
+    // const MIDI_OUTPUT: MidiConfig = MidiConfig::None; // Already MidiConfig::None by default
+    const SAMPLE_ACCURATE_AUTOMATION: bool = true;
+
     type SysExMessage = ();
     type BackgroundTask = ();
 
@@ -153,33 +149,34 @@ impl Plugin for OpenHeadstagePlugin {
         self.params.clone()
     }
 
+    /*
     fn editor(&self, async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        // Accessing the *intended* params struct conceptually for UI design.
-        // This part will not compile if OpenHeadstageParams itself causes issues.
-        // To make it "compile" (ignoring derive errors), one might pass Arc::new(())
-        // or a dummy Arc<ActualParams::default()> to create_egui_editor.
-        // For this subtask, we write the UI logic as if params were working.
+        // The `#[param]` attributes are gone, so direct UI generation from them
+        // might not work in the same way as with newer nih-plug versions.
+        // The `setter` object passed to the draw closure is the primary way to interact
+        // with parameters in older nih-plug versions for egui.
+        // We will use `self.params.clone()` which should now be Arc<OpenHeadstageParams>.
 
-        // let params_for_ui = self.params.clone(); // This would be Arc<OpenHeadstageParams>
-                                                 // Since self.params is Arc<()>, this won't work directly.
-                                                 // We'll use a placeholder for UI design purposes.
-        let placeholder_params = Arc::new(OpenHeadstageParams::default());
-
+        let params_arc = self.params.clone();
+        // let editor_state_arc = self.editor_state.clone(); // Commented out
 
         create_egui_editor(
-            self.editor_state.clone(),
-            (), // User state for the editor (can be simple struct)
-            |_, _| {}, // build closure (used for egui_glow context, not needed for basic egui)
+            // editor_state_arc, // Commented out
+            self.editor_state.clone(), // This will cause error if editor_state is removed from struct
+            (), // Userstate for the editor (can be simple struct)
+            |_, _| {}, // build closure (not used here)
             move |ui, setter, _uistate| { // draw closure
                 ui.heading("Open Headstage Controls");
                 ui.separator();
 
-                // Conceptual UI for SOFA File Loading
-                // In a real scenario, `setter.params()` would provide `Arc<OpenHeadstageParams>`
-                // For now, using `placeholder_params` to allow UI code to be written.
-                let params = &placeholder_params; // setter.params();
+                // Accessing parameters via the `setter` or the cloned `params_arc`.
+                // For displaying current value, `params_arc.sofa_file_path.value()` is fine.
+                // For modifying, `setter` must be used.
+                // The UI widgets ParamSlider, ParamCheckbox might need to be adapted if the
+                // `for_param` constructor isn't available or works differently.
+                // Older nih_plug_egui often used `ui.param_slider(setter, &params_arc.my_param, ...)`
 
-                ui.label(format!("SOFA File: {}", params.sofa_file_path.value()));
+                // ui.label(format!("SOFA File: {}", params_arc.sofa_file_path.value())); // Commented out
                 if ui.button("Load SOFA File").clicked() {
                     // File dialog logic (conceptual, needs async handling)
                     // This would typically be handled via tasks or commands sent to plugin
@@ -187,28 +184,29 @@ impl Plugin for OpenHeadstagePlugin {
                     // let task = rfd::FileDialog::new().pick_file();
                     // if let Some(path) = task {
                     //     setter.begin_set_parameter(&params.sofa_file_path);
-                    //     setter.set_parameter_normalized_str(&params.sofa_file_path, path.to_string_lossy().as_ref());
-                    //     setter.end_set_parameter(&params.sofa_file_path);
+                    //     setter.set_parameter(&params_arc.sofa_file_path, path.to_string_lossy().into_owned());
                     // }
                     nih_log!("SOFA File load button clicked (dialog not implemented in this step).");
                 }
                 ui.separator();
 
-                // Output Gain
-                ui.add(widgets::ParamSlider::for_param(&params.output_gain, setter).with_label("Output Gain"));
+                // Output Gain - Assuming ParamSlider::for_param still exists or similar API
+                // If not, this will need to be e.g. setter.param_slider(&params_arc.output_gain, "Output Gain")
+                // For now, keeping existing widget calls and will adapt if they fail.
+                // ui.add(widgets::ParamSlider::for_param(&params_arc.output_gain, setter).with_label("Output Gain")); // Commented out
                 ui.separator();
 
                 // Speaker Angles
                 ui.horizontal(|ui| {
                     ui.group(|ui| {
                         ui.label("Left Speaker");
-                        ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter).with_label("Azimuth (L)"));
-                        ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter).with_label("Elevation (L)"));
+                        // ui.add(widgets::ParamSlider::for_param(&params_arc.speaker_azimuth_left, setter).with_label("Azimuth (L)")); // Commented out
+                        // ui.add(widgets::ParamSlider::for_param(&params_arc.speaker_elevation_left, setter).with_label("Elevation (L)")); // Commented out
                     });
                     ui.group(|ui| {
                         ui.label("Right Speaker");
-                        ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter).with_label("Azimuth (R)"));
-                        ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter).with_label("Elevation (R)"));
+                        // ui.add(widgets::ParamSlider::for_param(&params_arc.speaker_azimuth_right, setter).with_label("Azimuth (R)")); // Commented out
+                        // ui.add(widgets::ParamSlider::for_param(&params_arc.speaker_elevation_right, setter).with_label("Elevation (R)")); // Commented out
                     });
                 });
                 ui.separator();
@@ -216,46 +214,41 @@ impl Plugin for OpenHeadstagePlugin {
                 // Parametric EQ Section
                 ui.horizontal(|ui| {
                     ui.label("Headphone EQ");
-                    ui.add(widgets::ParamCheckbox::for_param(&params.eq_enable, setter));
+                    // ui.add(widgets::ParamCheckbox::for_param(&params_arc.eq_enable, setter)); // Commented out
                 });
 
                 // Example for one band (conceptual)
-                // In a real UI, this would loop NUM_EQ_BANDS or use a helper.
                 ui.collapsing("EQ Band 1", |ui| {
-                    ui.add(widgets::ParamCheckbox::for_param(&params.eq_band1_enable, setter).with_label("Enable"));
-                    // Type selection would need a ComboBox or Radio Buttons for EnumParam
-                    // ui.add(ParamEnumComboBox::for_param(&params.eq_band1_type, setter));
-                    ui.add(widgets::ParamSlider::for_param(&params.eq_band1_fc, setter).with_label("Fc"));
-                    ui.add(widgets::ParamSlider::for_param(&params.eq_band1_q, setter).with_label("Q"));
-                    ui.add(widgets::ParamSlider::for_param(&params.eq_band1_gain, setter).with_label("Gain"));
+                    // ui.add(widgets::ParamCheckbox::for_param(&params_arc.eq_band1_enable, setter).with_label("Enable")); // Commented out
+                    // Type selection: ui.enum_param_buttons(setter, &params_arc.eq_band1_type, "Type") or similar
+                    // ui.add(widgets::ParamSlider::for_param(&params_arc.eq_band1_fc, setter).with_label("Fc")); // Commented out
+                    // ui.add(widgets::ParamSlider::for_param(&params_arc.eq_band1_q, setter).with_label("Q")); // Commented out
+                    // ui.add(widgets::ParamSlider::for_param(&params_arc.eq_band1_gain, setter).with_label("Gain")); // Commented out
                 });
-                // ... (imagine more bands or a scroll area)
             },
         )
     }
-
+    */
+    // Temporarily remove editor to focus on Params derive
+    fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        None
+    }
 
     fn initialize(
         &mut self,
         _audio_io_layout: &AudioIOLayout,
-        buffer_config: &BufferConfig,
+        _buffer_config: &BufferConfig, // Keep buffer_config to avoid unused var warning if current_sample_rate is re-added
         _context: &mut impl InitContext<Self>,
     ) -> bool {
-        self.current_sample_rate = buffer_config.sample_rate;
-        nih_log!("Plugin initialized. Sample rate: {} Hz", self.current_sample_rate);
-        // self.parametric_eq = StereoParametricEQ::new(NUM_EQ_BANDS, self.current_sample_rate);
-
-        // Placeholder: Load default IRs as parameter system is stubbed
-        self.convolution_engine.set_ir(ConvolutionPath::LSL, vec![1.0]);
-        self.convolution_engine.set_ir(ConvolutionPath::LSR, vec![0.0]);
-        self.convolution_engine.set_ir(ConvolutionPath::RSL, vec![0.0]);
-        self.convolution_engine.set_ir(ConvolutionPath::RSR, vec![1.0]);
+        // self.current_sample_rate = buffer_config.sample_rate; // Commented out
+        nih_log!("Plugin initialized.");
+        // No complex initialization needed for minimal example
         true
     }
 
     fn reset(&mut self) {
         nih_log!("Plugin reset.");
-        // self.parametric_eq.reset_all_bands_state();
+        // No state to reset in minimal example
     }
 
     fn process(
@@ -264,38 +257,18 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        let block_size = buffer.samples();
-        let mut left_input_temp = vec![0.0f32; block_size];
-        let mut right_input_temp = vec![0.0f32; block_size];
-        let mut left_output_temp = vec![0.0f32; block_size];
-        let mut right_output_temp = vec![0.0f32; block_size];
-
-        for (i, mut frame) in buffer.iter_samples().enumerate() {
-            left_input_temp[i] = *frame.get_mut(0).unwrap_or(&mut 0.0);
-            if frame.len() > 1 {
-                right_input_temp[i] = *frame.get_mut(1).unwrap_or(&mut 0.0);
+        // Simplified gain processing like in nih-plug Gain example
+        for channel_samples in buffer.iter_samples() {
+            // .next() is not needed for older nih_plug param smoothing; direct value access.
+            // let gain = self.params.output_gain.smoothed.next();
+            let gain = self.params.output_gain.value; // Direct value access for older nih-plug
+            for sample in channel_samples {
+                *sample *= gain;
             }
         }
-
-        self.convolution_engine.process_block(
-            &left_input_temp,
-            &right_input_temp,
-            &mut left_output_temp,
-            &mut right_output_temp,
-        );
-
-        // TODO: Apply EQ (self.parametric_eq.process_block) here if enabled
-        // TODO: Apply output gain from params here if params were working
-
-        for (i, mut frame) in buffer.iter_samples().enumerate() {
-            if let Some(s) = frame.get_mut(0) { *s = left_output_temp[i]; }
-            if frame.len() > 1 {
-                if let Some(s) = frame.get_mut(1) { *s = right_output_temp[i]; }
-            }
-        }
-
         ProcessStatus::Normal
     }
 }
 
 nih_export_clap!(OpenHeadstagePlugin);
+nih_export_vst3!(OpenHeadstagePlugin);

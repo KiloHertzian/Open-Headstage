@@ -17,8 +17,8 @@ rubato = "0.13.0"
 home = "=0.5.9" # Pinned to avoid MSRV issue with 0.5.11 via bindgen
 rand = "0.8.5"
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad", package = "nih_plug_egui" }
-egui = "0.22.0" # Or compatible version
-rfd = "0.11.0"  # Or latest compatible
+egui = "0.22.0" # Compatible with the pinned nih_plug_egui rev
+rfd = "0.11.0"
 
 [build-dependencies]
 bindgen = "0.69"

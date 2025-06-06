@@ -1,0 +1,12 @@
+[package]
+name = "temp-nih-example"
+version = "0.1.0"
+edition = "2021"
+
+[lib] # The gain example is a library
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad" }
+parking_lot = "0.12.1"
+backtrace = "=0.3.68" # Pin to version compatible with Rust 1.75.0
