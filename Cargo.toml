@@ -1,3 +1,4 @@
+workspace = { members = ["dummy_plugin"] }
 [package]
 name = "open-headstage" # Changed to kebab-case
 version = "0.1.0"
