@@ -11,7 +11,7 @@ Phase 1: Anechoic Core Development (Project Initialization)
 - Direct SOFA HRTF/BRIR file loading (`.sofa`)
 - Speaker angle selection (manual and presets)
 - Headphone Parametric Equalization (10-band PEQ with AutoEq import)
-- LV2 and VST3 plugin formats for Linux
+- CLAP plugin format for Linux (with potential VST3 support in the future).
 
 ## Tech Stack (Planned)
 - Language: Rust
@@ -88,4 +88,19 @@ graph TD
 (This section will outline the process for contributing, such as forking the repository, creating a new branch, submitting pull requests, and linking to the issue templates.)
 
 ## Roadmap
-(This section will provide a more detailed overview of planned features, future phases, and estimated timelines.)
+
+Our primary focus is on delivering a robust CLAP plugin for Linux. Future development may include VST3 support after CLAP implementation is mature.
+
+**Phase 1: CLAP Plugin Implementation (Current Focus)**
+- Integrate CLAP plugin support using the `nih-plug` framework.
+- Implement core audio processing and parameter handling for the CLAP plugin.
+- Conduct thorough testing with various CLAP-compatible DAWs and hosts on Linux (e.g., Bitwig Studio, Ardour, REAPER).
+- Ensure stability and performance of the initial CLAP release.
+
+**Phase 2: Feature Enhancements (Post-CLAP MVP)**
+- (Details of Phase 2 features will be added here once Phase 1 is nearing completion)
+
+**Future Considerations (Beyond Phase 2)**
+- Exploration of VST3 plugin format support.
+- Advanced room simulation features.
+- Expanded Headphone EQ options.
