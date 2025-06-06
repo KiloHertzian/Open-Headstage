@@ -244,76 +244,25 @@ impl Plugin for OpenHeadstagePlugin {
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         // Read speaker angle parameters
-        let az_l = self.params.speaker_azimuth_left.smoothed.next();
-        let el_l = self.params.speaker_elevation_left.smoothed.next();
-        let az_r = self.params.speaker_azimuth_right.smoothed.next();
-        let el_r = self.params.speaker_elevation_right.smoothed.next();
+        let _az_l = self.params.speaker_azimuth_left.smoothed.next();
+        let _el_l = self.params.speaker_elevation_left.smoothed.next();
+        let _az_r = self.params.speaker_azimuth_right.smoothed.next();
+        let _el_r = self.params.speaker_elevation_right.smoothed.next();
 
         // --- Conceptual HRIR Fetching & Configuration ---
         // This section outlines where HRIRs would be fetched based on angles
         // and then passed to the convolution engine.
         // The actual methods on MySofa and ConvolutionEngine might differ.
+        // Example: if let Some(loader) = &self.sofa_loader {
+        //     let (hrir_l, hrir_r) = loader.get_hrtf_irs(az_l, el_l, DEFAULT_SPEAKER_RADIUS).unwrap_or_default();
+        //     // self.convolution_engine.set_left_speaker_hrir(hrir_l, hrir_r);
+        // }
 
-        /*
-        // 1. Fetch HRIRs based on angles using the SOFA loader
-        // These are conceptual types. Actual HRIR data might be Vec<f32> or similar.
-        type HrirPair = (Option<ConvolutionPath>, Option<ConvolutionPath>); // Assuming ConvolutionPath holds HRIR data
-
-        let (left_speaker_hrir_l, left_speaker_hrir_r): HrirPair =
-            if let Some(loader) = &self.sofa_loader {
-                // Conceptual: loader.get_stereo_hrir_for_angle(az_l, el_l, self.current_sample_rate)
-                // This method would find the nearest HRIR in the SOFA file for the given angle
-                // and potentially resample it if needed (MySofa might do this internally).
-                // Returning a pair for stereo source (e.g. left ear, right ear impulse responses)
-                // For now, we'll use placeholders.
-                nih_log_once!("Fetching HRIR for L: az={}, el={}", az_l, el_l); // Log once to avoid spam
-                // (Some(loader.get_hrir_l(az_l, el_l)), Some(loader.get_hrir_r(az_l, el_l)))
-                (None, None) // Placeholder
-            } else {
-                // Fallback if no SOFA file is loaded. ConvolutionEngine might have its own defaults.
-                // (self.convolution_engine.default_hrir_l(), self.convolution_engine.default_hrir_r())
-                (None, None) // Placeholder
-            };
-
-        let (right_speaker_hrir_l, right_speaker_hrir_r): HrirPair =
-            if let Some(loader) = &self.sofa_loader {
-                nih_log_once!("Fetching HRIR for R: az={}, el={}", az_r, el_r); // Log once
-                // (Some(loader.get_hrir_l(az_r, el_r)), Some(loader.get_hrir_r(az_r, el_r)))
-                (None, None) // Placeholder
-            } else {
-                // (self.convolution_engine.default_hrir_l(), self.convolution_engine.default_hrir_r())
-                (None, None) // Placeholder
-            };
-
-        // 2. Pass HRIRs to the Convolution Engine
-        // This is also conceptual. The method might take paths, direct data, or be part of process().
-        // self.convolution_engine.set_hrirs(
-        //     left_speaker_hrir_l, left_speaker_hrir_r,
-        //     right_speaker_hrir_l, right_speaker_hrir_r
-        // );
-        // Or, if ConvolutionEngine takes HRIRs directly in its process method:
-        // self.convolution_engine.process(
-        //     buffer,
-        //     left_speaker_hrir_l, left_speaker_hrir_r,
-        //     right_speaker_hrir_l, right_speaker_hrir_r
-        // );
-        */
 
         // --- Actual Processing ---
-        // For now, only the convolution engine's process method is called if available.
-        // If it's not doing anything internally (e.g. no HRIRs loaded), it might be a passthrough.
-        // For this subtask, we assume HRIRs are managed internally by ConvolutionEngine
-        // based on prior configuration (e.g. in initialize() or via other dedicated methods
-        // that might be called when parameters like sofa_file_path or angles change).
-
-        // The main processing loop
-        let eq_enabled = self.params.eq_enable.value(); // Get non-smoothed for enable/disable check
+        let eq_enabled = self.params.eq_enable.value();
 
         if eq_enabled {
-            // Update EQ band coefficients - example for band 1
-            // Assuming StereoParametricEQ uses 0-indexed bands
-            // Also assuming a default FilterType::Peak if type enum param is not used.
-            // The actual FilterType might need to come from a parameter if `eq_b1_type` was active.
             self.parametric_eq.set_band_params(
                 0, // band_idx: usize
                 FilterType::Peak, // filter_type: FilterType (Assuming Peak as default)
@@ -324,50 +273,39 @@ impl Plugin for OpenHeadstagePlugin {
                 self.params.eq_band1_enable.value() // enabled: bool
             );
             // Conceptual: Loop for NUM_EQ_BANDS to update all bands
-            // for band_idx in 0..NUM_EQ_BANDS {
-            //    self.parametric_eq.set_band_params(band_idx, ...);
+            // for band_idx in 1..NUM_EQ_BANDS {
+            //    // self.parametric_eq.set_band_params(band_idx, ...);
             // }
         }
 
         let num_samples = buffer.samples();
-        let mut channels = buffer.as_slice_mut(); // Gets &mut [&mut [f32]]
+        let channels = buffer.as_slice_mut();
 
-        // Ensure we have stereo channels as expected
         if channels.len() < 2 {
-            // Not stereo, or unexpected buffer configuration.
-            // For safety, we could just return or log an error.
-            // For now, assume layout guarantees stereo.
-            return ProcessStatus::Normal; // Or some error status
+            return ProcessStatus::Normal;
         }
 
-        let (left_channel, right_channel) = channels.split_at_mut(1);
-        let mut left_samples = &mut left_channel[0];
-        let mut right_samples = &mut right_channel[0];
+        let (left_samples_slice_of_slice, right_samples_slice_of_slice) = channels.split_at_mut(1);
+        let left_samples = &mut left_samples_slice_of_slice[0];
+        let right_samples = &mut right_samples_slice_of_slice[0];
 
-        // 1. Process through Parametric EQ if enabled (in-place)
         if eq_enabled {
-            self.parametric_eq.process_block(&mut left_samples, &mut right_samples);
+            self.parametric_eq.process_block(left_samples, right_samples);
         }
 
-        // 2. Process through Convolution Engine
-        // Convolution engine requires separate output buffers.
-        // This involves allocation here, which is not ideal for realtime.
-        // A better approach would use pre-allocated scratch buffers in OpenHeadstagePlugin.
         let mut conv_output_left = vec![0.0f32; num_samples];
         let mut conv_output_right = vec![0.0f32; num_samples];
 
         self.convolution_engine.process_block(
-            &left_samples,  // input_left: &[f32]
-            &right_samples, // input_right: &[f32]
-            &mut conv_output_left, // output_left: &mut [f32]
-            &mut conv_output_right // output_right: &mut [f32]
+            left_samples,
+            right_samples,
+            &mut conv_output_left,
+            &mut conv_output_right
         );
 
-        // Copy convolution output back to the main buffer
         left_samples.copy_from_slice(&conv_output_left);
         right_samples.copy_from_slice(&conv_output_right);
 
-        // Apply master output gain after all processing
         let master_gain = self.params.output_gain.smoothed.next();
         for sample_l in left_samples.iter_mut() {
             *sample_l *= master_gain;
