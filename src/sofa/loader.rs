@@ -149,7 +149,7 @@ impl MySofa {
         let mut delay_left_s = 0.0f32; // Delay in seconds
         let mut delay_right_s = 0.0f32;
 
-        let err_code_filter = unsafe {
+        let err_code_filter: ::std::os::raw::c_int = unsafe { // Explicit type
             bindings::mysofa_getfilter_float(
                 self.handle,
                 cartesian_coords[0], // x
@@ -171,10 +171,14 @@ impl MySofa {
                 // If not, this part might need adjustment or conditional compilation.
                 // For now, let's try to access it, assuming the previous subtask's
                 // findings about allowlisting MYSOFA_EASY are sufficient.
-                detail_err_code = unsafe { (*self.handle).err };
+                // Accessing err through the hrtf field of MYSOFA_EASY, which is MYSOFA_HRTF_H.
+                // MYSOFA_HRTF_H struct has an 'err' field.
+                if !(*self.handle).hrtf.is_null() { // Check if hrtf pointer is valid
+                    detail_err_code = unsafe { (*(*self.handle).hrtf).err };
+                }
             }
             return Err(SofaError::MysofaFilterError(format!(
-                "mysofa_getfilter_float failed with code: {}. Handle error field: {}",
+                "mysofa_getfilter_float failed with code: {}. Detailed HRTF error code: {}",
                 err_code_filter, detail_err_code
             )));
         }

@@ -141,107 +141,7 @@ impl BiquadFilter {
     }
 }
 
-pub struct ParametricEQ {
-    bands: Vec<BiquadFilter>,
-    // TODO: Add overall enable/disable for the entire EQ chain?
-}
-
-impl ParametricEQ {
-    pub fn new(num_bands: usize, initial_sample_rate: f32) -> Self {
-        Self {
-            bands: vec![BiquadFilter::new(initial_sample_rate); num_bands],
-        }
-    }
-
-    pub fn set_band_params(
-        &mut self,
-        band_idx: usize,
-        filter_type: FilterType,
-        sample_rate: f32, // Sample rate might change, so pass it per update
-        center_freq: f32,
-        q: f32,
-        gain_db: f32,
-        enabled: bool,
-    ) {
-        if let Some(band) = self.bands.get_mut(band_idx) {
-            // Store current enabled state before updating coeffs (which might change it)
-            let was_enabled = band.enabled;
-            band.filter_type = filter_type;
-            band.sample_rate = sample_rate; // Update SR for the band
-            band.center_freq = center_freq;
-            band.q = q;
-            band.gain_db = gain_db;
-
-            if enabled {
-                band.update_coeffs(filter_type, sample_rate, center_freq, q, gain_db);
-                band.enabled = true; // Ensure it's marked enabled
-            } else {
-                band.set_enabled(false); // This will set passthrough coeffs
-            }
-
-            // Reset state if filter parameters changed significantly or if it was just enabled/disabled
-            if enabled != was_enabled || enabled { // Reset if enabled status changed or if it is enabled and params changed
-                band.reset_state();
-            }
-        }
-    }
-
-    pub fn get_band_mut(&mut self, band_idx: usize) -> Option<&mut BiquadFilter> {
-        self.bands.get_mut(band_idx)
-    }
-
-    pub fn process_block(&mut self, input_left: &mut [f32], input_right: &mut [f32]) {
-        // Assuming input_left and input_right are of the same length
-        for i in 0..input_left.len() {
-            let mut sample_l = input_left[i];
-            let mut sample_r = input_right[i];
-
-            for band in self.bands.iter_mut() { // Iterate mutably to update state (z1, z2)
-                if band.enabled { // Only process if band is enabled
-                    sample_l = band.process_sample(sample_l);
-                    // For stereo, we need separate state for left and right channels per band.
-                    // This current BiquadFilter struct is mono.
-                    // To handle stereo correctly, ParametricEQ needs two BiquadFilter Vecs,
-                    // or BiquadFilter needs to handle stereo state.
-                    // For now, processing right channel with the same filter (incorrect state sharing).
-                    // This needs to be fixed for proper stereo EQ.
-                    // A quick fix: duplicate bands or make BiquadFilter stereo.
-                    // For this step, let's assume we want the same EQ curve on L/R
-                    // but process them independently regarding state.
-                    // This implies ParametricEQ should manage pairs of BiquadFilters or BiquadFilter should be stereo.
-                    // The simplest change for now is to acknowledge this limitation.
-                    // A correct implementation would require BiquadFilter to be duplicated or made stereo-aware.
-                    // Let's process right channel using the same filter instance for now, which is WRONG for state.
-                    // sample_r = band.process_sample(sample_r); // THIS IS WRONG due to shared state.
-                    //
-                    // Correct approach would be:
-                    // bands_left[j].process_sample(sample_l) and bands_right[j].process_sample(sample_r)
-                    // For now, this example will just process left channel to highlight the structure.
-                    // Or, if we assume mono processing at this stage (e.g. before stereo linking):
-                }
-            }
-            input_left[i] = sample_l;
-            // input_right[i] = sample_r; // Not correctly processed for stereo yet.
-            input_right[i] = sample_l; // TEMP: output mono L to both L/R to make it compile and run
-                                       // This should be sample_r processed by its own set of filters or a stereo filter.
-        }
-    }
-
-    // A corrected process_block for stereo, assuming ParametricEQ holds stereo filters
-    // This would require changing `bands: Vec<BiquadFilter>` to something like
-    // `bands_left: Vec<BiquadFilter>, bands_right: Vec<BiquadFilter>`
-    // or `stereo_bands: Vec<(BiquadFilter, BiquadFilter)>`
-    // For now, the above process_block is a placeholder for structure.
-    // Let's keep it simple and assume mono processing for now, or that the BiquadFilter
-    // is applied per channel as if it were two separate EQs.
-    // The current process_block is problematic. I'll fix it to be more correct structurally,
-    // by having separate state.
-    // This implies ParametricEQ needs to be more complex.
-    // For now, the task is to implement BiquadFilter and AutoEQ parser.
-    // The ParametricEQ struct is optional, so I will keep its process_block very simple
-    // and note its limitations. The StereoParametricEQ is preferred.
-}
-
+// The old `ParametricEQ` struct is superseded by `StereoParametricEQ` and will be removed.
 
 pub struct StereoParametricEQ {
     bands_left: Vec<BiquadFilter>,
@@ -489,6 +389,15 @@ mod tests {
         assert!(output_power < input_power * 0.8, // Should be significantly less than input (0.8 is arbitrary)
                 "Output power should be reduced for a peak cut filter. InP: {:.4}, OutP: {:.4}, ExpectedGainSq: {:.4}",
                 input_power, output_power, expected_gain_lin.powi(2));
+
+        // Use expected_output_power in an assertion.
+        // This assertion checks if the actual output power is reasonably close to the theoretically expected power.
+        // The range (e.g., 0.5 to 1.5 times expected) can be adjusted based on how accurate the test signal and filter are.
+        let lower_bound = expected_output_power * 0.5; // Example lower bound
+        let upper_bound = expected_output_power * 1.5; // Example upper bound
+        assert!(output_power >= lower_bound && output_power <= upper_bound,
+                "Output power {:.4} was not in the expected range [{:.4}, {:.4}] around theoretical {:.4}",
+                output_power, lower_bound, upper_bound, expected_output_power);
         // A more precise test would be to measure gain at Fc after filter settles.
     }
 }
