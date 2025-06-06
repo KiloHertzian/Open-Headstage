@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 # Plugin framework
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", tag = "v0.5.2" }
-nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", tag = "v0.5.2", optional = true }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
 
 # DSP
 rustfft = "6.0"
