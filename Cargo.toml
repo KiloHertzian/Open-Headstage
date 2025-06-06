@@ -1,32 +1,31 @@
 [package]
-name = "open-headstage" # Changed to kebab-case
+name = "open-headstage"
 version = "0.1.0"
 edition = "2021"
-description = "An open-source binaural speaker simulation plugin for headphones."
-license = "GPL-3.0-or-later" # SPDX identifier for GPLv3
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad" } # Reverted to git rev for 0.5.1
-backtrace = "=0.3.68" # Pinning to an exact older version
-rustfft = "6.1.0"
-num-complex = "0.4.0"
-libc = "0.2"
-rubato = "0.13.0"
-home = "=0.5.9" # Pinned to avoid MSRV issue with 0.5.11 via bindgen
-rand = "0.8.5"
-nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad", package = "nih_plug_egui" }
-egui = "0.22.0" # Compatible with the pinned nih_plug_egui rev
-rfd = "0.11.0"
+# Plugin framework
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" } # Use latest master branch
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
+
+# DSP
+rustfft = "6.0"
+realfft = "3.0"
+rubato = "0.16"
+
+# SOFA file handling (via FFI)
+# libmysofa-sys = "0.1" # Would need to create or find appropriate bindings
+
+# Utility
+serde = { version = "1.0", features = ["derive"] }
+rfd = { version = "0.14", optional = true } # File dialog for SOFA loading
 
 [build-dependencies]
-bindgen = "0.69"
+bindgen = "0.70"
+
+[features]
+default = []
+ui = ["nih_plug_egui", "rfd"]
 
 [lib]
 crate-type = ["cdylib"]
-
-[features]
-default = ["nih_plug/vst3"]
-vst3 = ["nih_plug/vst3"]
-# lv2 = ["nih_plug/lv2"] # Temporarily removed until LV2 support in nih_plug is clarified
