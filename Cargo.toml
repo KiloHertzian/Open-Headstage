@@ -8,8 +8,20 @@ license = "GPL-3.0-or-later" # SPDX identifier for GPLv3
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad" }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad" } # Reverted to git rev for 0.5.1
 backtrace = "=0.3.68" # Pinning to an exact older version
+rustfft = "6.1.0"
+num-complex = "0.4.0"
+libc = "0.2"
+rubato = "0.13.0"
+home = "=0.5.9" # Pinned to avoid MSRV issue with 0.5.11 via bindgen
+rand = "0.8.5"
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "a33569bff6633a8b595b5c870d176e6e9cedcaad", package = "nih-plug-egui" }
+egui = "0.22.0" # Or compatible version
+rfd = "0.11.0"  # Or latest compatible
+
+[build-dependencies]
+bindgen = "0.69"
 
 [lib]
 crate-type = ["cdylib"]
