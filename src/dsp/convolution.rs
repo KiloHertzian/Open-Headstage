@@ -302,10 +302,10 @@ mod tests {
     #[test]
     fn test_identity_ir_passthrough() {
         let mut engine = ConvolutionEngine::new();
-        engine.set_ir(ConvolutionPath::LSL, &[1.0]);
-        engine.set_ir(ConvolutionPath::LSR, &[0.0]);
-        engine.set_ir(ConvolutionPath::RSL, &[0.0]);
-        engine.set_ir(ConvolutionPath::RSR, &[1.0]);
+        engine.set_ir(ConvolutionPath::Lsl, &[1.0]);
+        engine.set_ir(ConvolutionPath::Lsr, &[0.0]);
+        engine.set_ir(ConvolutionPath::Rsl, &[0.0]);
+        engine.set_ir(ConvolutionPath::Rsr, &[1.0]);
 
         let input_l: Vec<f32> = (0..BLOCK_SIZE).map(|i| (i as f32 * 0.1).sin()).collect();
         let input_r: Vec<f32> = (0..BLOCK_SIZE).map(|i| (i as f32 * -0.1).sin()).collect();
@@ -338,10 +338,10 @@ mod tests {
         let mut ir = vec![0.0; delay_samples + 1];
         ir[delay_samples] = 1.0;
 
-        engine.set_ir(ConvolutionPath::LSL, &ir);
-        engine.set_ir(ConvolutionPath::LSR, &[0.0]);
-        engine.set_ir(ConvolutionPath::RSL, &[0.0]);
-        engine.set_ir(ConvolutionPath::RSR, &[0.0]);
+        engine.set_ir(ConvolutionPath::Lsl, &ir);
+        engine.set_ir(ConvolutionPath::Lsr, &[0.0]);
+        engine.set_ir(ConvolutionPath::Rsl, &[0.0]);
+        engine.set_ir(ConvolutionPath::Rsr, &[0.0]);
 
         let mut input_l = vec![0.0; BLOCK_SIZE * 2];
         for i in 0..input_l.len() {
@@ -376,7 +376,7 @@ mod tests {
         ir[0] = 1.0; // Passthrough part
         ir[ir_len - 1] = 0.5; // Echo part
 
-        engine.set_ir(ConvolutionPath::LSL, &ir);
+        engine.set_ir(ConvolutionPath::Lsl, &ir);
         assert_eq!(
             engine.paths[0].ir_fft_partitions.len(),
             2,

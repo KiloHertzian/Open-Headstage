@@ -234,7 +234,7 @@ mod tests {
             "/tmp/some_hopefully_non_existent_sofa_file_for_test.sofa",
             48000.0,
         ) {
-            Err(SofaError::FileOpenError(_)) => {
+            Err(SofaError::FileOpen(_)) => {
                 // Expected error
             }
             Ok(_) => panic!("Should not succeed in opening a non-existent file."),
@@ -259,7 +259,7 @@ mod tests {
                 TEST_SOFA_PATH
             );
             // We can still proceed with a dummy MySofa if open fails in a specific way,
-            // but the MySofa::open itself will likely fail with FileOpenError first.
+            // but the MySofa::open itself will likely fail with FileOpen first.
             // Let's try to open and if it fails, that's the test outcome for now.
         }
 
@@ -271,23 +271,23 @@ mod tests {
                 let result = mysofa.get_hrtf_irs(0.0, 0.0, 0.0); // Azimuth, Elevation, Radius (0)
 
                 match result {
-                    Err(SofaError::MysofaFilterError(_)) => {
+                    Err(SofaError::MysofaFilter(_)) => {
                         // This is the expected error type if mysofa_getfilter_float fails.
                         // The error message content (error code) might vary.
-                        println!("Successfully caught MysofaFilterError as expected.");
+                        println!("Successfully caught MysofaFilter as expected.");
                     }
                     Ok(_) => {
                         panic!("mysofa_getfilter_float did not return an error for potentially invalid parameters (radius 0.0). This might indicate the specific SOFA file handles this case gracefully, or the error condition wasn't triggered as expected.");
                     }
                     Err(e) => {
                         panic!(
-                            "Expected MysofaFilterError, but got a different error: {:?}",
+                            "Expected MysofaFilter, but got a different error: {:?}",
                             e
                         );
                     }
                 }
             }
-            Err(SofaError::FileOpenError(_)) => {
+            Err(SofaError::FileOpen(_)) => {
                 // This is an expected outcome if the TEST_SOFA_PATH file doesn't exist.
                 // The test then implicitly doesn't reach the get_hrtf_irs error check.
                 eprintln!(
