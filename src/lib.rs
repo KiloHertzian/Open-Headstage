@@ -263,29 +263,26 @@ impl Plugin for OpenHeadstagePlugin {
         // It's also possible ConvolutionEngine is more tightly coupled with MySofa,
         // or MySofa itself provides the process() method.
         // For this subtask, we ensure it's part of initialization.
-        let (_actual_ir_l, _actual_ir_r): (Option<Vec<f32>>, Option<Vec<f32>>) = if let Some(
-            _loader,
-        ) =
-            &self.sofa_loader
-        {
-            // Placeholder: Assuming MySofa has methods to get HRIRs and their length
-            // This part is highly dependent on MySofa and ConvolutionEngine's exact API
-            // For example:
-            // (loader.get_left_hrir(), loader.get_right_hrir(), loader.filter_length())
-            // For now, we'll just log and use a default length for demonstration
-            nih_log!("SOFA loader available, configuring convolution engine (conceptually).");
-            // Let's assume MySofa has a method `get_filters()` returning (Vec<f32>, Vec<f32>)
-            // and `filter_length()` returning usize. This is speculative.
-            // let (hrir_l, hrir_r) = loader.get_filters();
-            // let filter_len = loader.filter_length();
-            // self.convolution_engine.update_ir(hrir_l, hrir_r, filter_len);
-            (None, None) // Replace with actual HRIR data if available
-        } else {
-            nih_log!(
+        let (_actual_ir_l, _actual_ir_r): (Option<Vec<f32>>, Option<Vec<f32>>) =
+            if let Some(_loader) = &self.sofa_loader {
+                // Placeholder: Assuming MySofa has methods to get HRIRs and their length
+                // This part is highly dependent on MySofa and ConvolutionEngine's exact API
+                // For example:
+                // (loader.get_left_hrir(), loader.get_right_hrir(), loader.filter_length())
+                // For now, we'll just log and use a default length for demonstration
+                nih_log!("SOFA loader available, configuring convolution engine (conceptually).");
+                // Let's assume MySofa has a method `get_filters()` returning (Vec<f32>, Vec<f32>)
+                // and `filter_length()` returning usize. This is speculative.
+                // let (hrir_l, hrir_r) = loader.get_filters();
+                // let filter_len = loader.filter_length();
+                // self.convolution_engine.update_ir(hrir_l, hrir_r, filter_len);
+                (None, None) // Replace with actual HRIR data if available
+            } else {
+                nih_log!(
                 "No SOFA loader, using default/passthrough for convolution engine (conceptually)."
             );
-            (None, None) // No specific IRs
-        };
+                (None, None) // No specific IRs
+            };
         // Example of reconfiguring convolution engine:
         // self.convolution_engine.set_config(self.current_sample_rate, filter_length_from_sofa_or_default);
         // self.convolution_engine.load_impulse_responses(actual_ir_l, actual_ir_r);
