@@ -7,7 +7,7 @@ This file tracks the development tasks for the Open Headstage project.
 ### 1.1: Core Infrastructure & Dependencies
 - [x] **Core Infra: Basic parameter handling for MVP controls:** Define and implement basic plugin parameters using `nih-plug` for the MVP features.
 - [x] **Core Infra: Implement FFI bindings for libmysofa:** Implement FFI bindings for `libmysofa`.
-- [ ] **Build System: Resolve CI/CD compilation issues:** Investigate and fix the Rustc/`nih-plug` version incompatibility and git fetching errors in the CI environment.
+- [x] Build System: Resolve CI/CD compilation issues (Rustc/nih-plug version incompatibility, git fetching errors).
 - [x] **Core Infra: Debug and fix initial compilation errors:** Systematically debug and resolve the initial compilation errors related to `nih-plug` integration, FFI, and the borrow checker.
 - [ ] **Core Infra: Investigate SOFA file path persistence:** Research and implement the correct method for persisting the SOFA file path in the plugin state.
 
