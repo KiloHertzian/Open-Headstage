@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Plugin framework
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" } # Use latest master branch
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
 
 # DSP

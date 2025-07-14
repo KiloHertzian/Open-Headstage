@@ -35,6 +35,8 @@ fn main() {
         .allowlist_function("mysofa_s2c")
         .allowlist_function("mysofa_c2s")
         .allowlist_function("mysofa_get_sampling_rate") // if this is a function
+        .blocklist_function("mysofa_getfilter_float") // Blocklist the function to manually define it
+        .raw_line("extern \"C\" { pub fn mysofa_getfilter_float(easy: *mut MYSOFA_EASY, x: f32, y: f32, z: f32, IRleft: *mut f32, IRright: *mut f32, delayLeft: *mut f32, delayRight: *mut f32,) -> ::std::os::raw::c_int; }") // Manually define with correct return type
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
