@@ -229,6 +229,7 @@ impl Plugin for OpenHeadstagePlugin {
             "Plugin initialized. Sample rate: {}",
             self.current_sample_rate
         );
+        nih_log!("SOFA file path on initialization: '{}'", self.params.sofa_file_path);
 
         let sofa_path_str = &self.params.sofa_file_path;
         if !sofa_path_str.is_empty() {
