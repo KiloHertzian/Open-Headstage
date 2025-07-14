@@ -12,6 +12,15 @@ pub enum FilterType {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct BandConfig {
+    pub filter_type: FilterType,
+    pub center_freq: f32,
+    pub q: f32,
+    pub gain_db: f32,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct BiquadFilter {
     // Coefficients
     b0: f32,
@@ -36,16 +45,27 @@ pub struct BiquadFilter {
 impl BiquadFilter {
     pub fn new(initial_sample_rate: f32) -> Self {
         let mut filter = Self {
-            b0: 1.0, b1: 0.0, b2: 0.0, a1: 0.0, a2: 0.0, // Passthrough
-            z1: 0.0, z2: 0.0,
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0, // Passthrough
+            z1: 0.0,
+            z2: 0.0,
             sample_rate: initial_sample_rate,
-            center_freq: 20.0, // Default, essentially no effect or DC
-            q: 0.707,          // Default Butterworth Q for shelves, or generic for peak
-            gain_db: 0.0,      // No gain change
+            center_freq: 20.0,             // Default, essentially no effect or DC
+            q: 0.707,                      // Default Butterworth Q for shelves, or generic for peak
+            gain_db: 0.0,                  // No gain change
             filter_type: FilterType::Peak, // Default type
-            enabled: false, // Default to disabled
+            enabled: false,                // Default to disabled
         };
-        filter.update_coeffs(filter.filter_type, filter.sample_rate, filter.center_freq, filter.q, filter.gain_db);
+        filter.update_coeffs(
+            filter.filter_type,
+            filter.sample_rate,
+            filter.center_freq,
+            filter.q,
+            filter.gain_db,
+        );
         filter
     }
 
@@ -58,15 +78,31 @@ impl BiquadFilter {
         self.enabled = enabled;
         if !enabled {
             // Set to passthrough when disabled
-            self.b0 = 1.0; self.b1 = 0.0; self.b2 = 0.0;
-            self.a1 = 0.0; self.a2 = 0.0;
+            self.b0 = 1.0;
+            self.b1 = 0.0;
+            self.b2 = 0.0;
+            self.a1 = 0.0;
+            self.a2 = 0.0;
         } else {
             // Recalculate actual coefficients
-            self.update_coeffs(self.filter_type, self.sample_rate, self.center_freq, self.q, self.gain_db);
+            self.update_coeffs(
+                self.filter_type,
+                self.sample_rate,
+                self.center_freq,
+                self.q,
+                self.gain_db,
+            );
         }
     }
 
-    pub fn update_coeffs(&mut self, filter_type: FilterType, sample_rate: f32, center_freq: f32, q: f32, gain_db: f32) {
+    pub fn update_coeffs(
+        &mut self,
+        filter_type: FilterType,
+        sample_rate: f32,
+        center_freq: f32,
+        q: f32,
+        gain_db: f32,
+    ) {
         self.filter_type = filter_type;
         self.sample_rate = sample_rate;
         self.center_freq = center_freq.max(1.0).min(sample_rate / 2.0 - 1.0); // Nyquist clamp
@@ -74,8 +110,11 @@ impl BiquadFilter {
         self.gain_db = gain_db;
 
         if !self.enabled {
-            self.b0 = 1.0; self.b1 = 0.0; self.b2 = 0.0;
-            self.a1 = 0.0; self.a2 = 0.0;
+            self.b0 = 1.0;
+            self.b1 = 0.0;
+            self.b2 = 0.0;
+            self.a1 = 0.0;
+            self.a2 = 0.0;
             return;
         }
 
@@ -84,10 +123,8 @@ impl BiquadFilter {
         let cos_omega = omega.cos();
         let sin_omega = omega.sin();
         let alpha = sin_omega / (2.0 * self.q); // For Peak, LowShelf, HighShelf (with Q)
-        // For shelves, can also use alpha = sin_omega/2 * sqrt( (A + 1/A)*(1/S - 1) + 2 ) where S is shelf steepness/slope parameter.
-        // The RBJ cookbook uses Q for shelves as well, which is simpler to implement here.
-
-        
+                                                // For shelves, can also use alpha = sin_omega/2 * sqrt( (A + 1/A)*(1/S - 1) + 2 ) where S is shelf steepness/slope parameter.
+                                                // The RBJ cookbook uses Q for shelves as well, which is simpler to implement here.
 
         let mut a0_t = match filter_type {
             FilterType::Peak => {
@@ -101,26 +138,34 @@ impl BiquadFilter {
             FilterType::LowShelf => {
                 let a_val = a_lin.sqrt(); // This is the 'A' from RBJ cookbook
                 let sqrt_a_val = a_lin.powf(0.25); // This is sqrt(A)
-                self.b0 =     a_val * ( (a_val + 1.0) - (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha );
-                self.b1 = 2.0*a_val * ( (a_val - 1.0) - (a_val + 1.0) * cos_omega                   );
-                self.b2 =     a_val * ( (a_val + 1.0) - (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha );
-                self.a1 = -2.0      * ( (a_val - 1.0) + (a_val + 1.0) * cos_omega                   );
-                self.a2 =             (a_val + 1.0) + (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha;
-                (a_val + 1.0) + (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha // Return value for a0_t
+                self.b0 =
+                    a_val * ((a_val + 1.0) - (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha);
+                self.b1 = 2.0 * a_val * ((a_val - 1.0) - (a_val + 1.0) * cos_omega);
+                self.b2 =
+                    a_val * ((a_val + 1.0) - (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha);
+                self.a1 = -2.0 * ((a_val - 1.0) + (a_val + 1.0) * cos_omega);
+                self.a2 = (a_val + 1.0) + (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha;
+                (a_val + 1.0) + (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha
+                // Return value for a0_t
             }
             FilterType::HighShelf => {
                 let a_val = a_lin.sqrt(); // This is the 'A' from RBJ cookbook
                 let sqrt_a_val = a_lin.powf(0.25); // This is sqrt(A)
-                self.b0 =     a_val * ( (a_val + 1.0) + (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha );
-                self.b1 = -2.0*a_val * ( (a_val - 1.0) + (a_val + 1.0) * cos_omega                   );
-                self.b2 =     a_val * ( (a_val + 1.0) + (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha );
-                self.a1 =  2.0      * ( (a_val - 1.0) - (a_val + 1.0) * cos_omega                   );
-                self.a2 =             (a_val + 1.0) - (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha;
-                (a_val + 1.0) - (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha // Return value for a0_t
+                self.b0 =
+                    a_val * ((a_val + 1.0) + (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha);
+                self.b1 = -2.0 * a_val * ((a_val - 1.0) + (a_val + 1.0) * cos_omega);
+                self.b2 =
+                    a_val * ((a_val + 1.0) + (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha);
+                self.a1 = 2.0 * ((a_val - 1.0) - (a_val + 1.0) * cos_omega);
+                self.a2 = (a_val + 1.0) - (a_val - 1.0) * cos_omega - 2.0 * sqrt_a_val * alpha;
+                (a_val + 1.0) - (a_val - 1.0) * cos_omega + 2.0 * sqrt_a_val * alpha
+                // Return value for a0_t
             }
         };
 
-        if a0_t.abs() < 1e-8 { a0_t = 1.0; } // Avoid division by zero if a0_t is effectively zero
+        if a0_t.abs() < 1e-8 {
+            a0_t = 1.0;
+        } // Avoid division by zero if a0_t is effectively zero
 
         // Normalize coefficients by a0_t
         self.b0 /= a0_t;
@@ -157,34 +202,32 @@ impl ParametricEQ {
         }
     }
 
-    pub fn set_band_params(
-        &mut self,
-        band_idx: usize,
-        filter_type: FilterType,
-        sample_rate: f32, // Sample rate might change, so pass it per update
-        center_freq: f32,
-        q: f32,
-        gain_db: f32,
-        enabled: bool,
-    ) {
+    pub fn set_band_params(&mut self, band_idx: usize, sample_rate: f32, config: &BandConfig) {
         if let Some(band) = self.bands.get_mut(band_idx) {
             // Store current enabled state before updating coeffs (which might change it)
             let was_enabled = band.enabled;
-            band.filter_type = filter_type;
+            band.filter_type = config.filter_type;
             band.sample_rate = sample_rate; // Update SR for the band
-            band.center_freq = center_freq;
-            band.q = q;
-            band.gain_db = gain_db;
+            band.center_freq = config.center_freq;
+            band.q = config.q;
+            band.gain_db = config.gain_db;
 
-            if enabled {
-                band.update_coeffs(filter_type, sample_rate, center_freq, q, gain_db);
+            if config.enabled {
+                band.update_coeffs(
+                    config.filter_type,
+                    sample_rate,
+                    config.center_freq,
+                    config.q,
+                    config.gain_db,
+                );
                 band.enabled = true; // Ensure it's marked enabled
             } else {
                 band.set_enabled(false); // This will set passthrough coeffs
             }
 
             // Reset state if filter parameters changed significantly or if it was just enabled/disabled
-            if enabled != was_enabled || enabled { // Reset if enabled status changed or if it is enabled and params changed
+            if config.enabled != was_enabled || config.enabled {
+                // Reset if enabled status changed or if it is enabled and params changed
                 band.reset_state();
             }
         }
@@ -200,29 +243,31 @@ impl ParametricEQ {
             let mut sample_l = input_left[i];
             let mut sample_r = input_right[i];
 
-            for band in self.bands.iter_mut() { // Iterate mutably to update state (z1, z2)
-                if band.enabled { // Only process if band is enabled
+            for band in self.bands.iter_mut() {
+                // Iterate mutably to update state (z1, z2)
+                if band.enabled {
+                    // Only process if band is enabled
                     sample_l = band.process_sample(sample_l);
                     sample_r = band.process_sample(sample_r); // Process right channel
-                    // For stereo, we need separate state for left and right channels per band.
-                    // This current BiquadFilter struct is mono.
-                    // To handle stereo correctly, ParametricEQ needs two BiquadFilter Vecs,
-                    // or BiquadFilter needs to handle stereo state.
-                    // For now, processing right channel with the same filter (incorrect state sharing).
-                    // This needs to be fixed for proper stereo EQ.
-                    // A quick fix: duplicate bands or make BiquadFilter stereo.
-                    // For this step, let's assume we want the same EQ curve on L/R
-                    // but process them independently regarding state.
-                    // This implies ParametricEQ should manage pairs of BiquadFilters or BiquadFilter should be stereo.
-                    // The simplest change for now is to acknowledge this limitation.
-                    // A correct implementation would require BiquadFilter to be duplicated or made stereo-aware.
-                    // Let's process right channel using the same filter instance for now, which is WRONG for state.
-                    // sample_r = band.process_sample(sample_r); // THIS IS WRONG due to shared state.
-                    //
-                    // Correct approach would be:
-                    // bands_left[j].process_sample(sample_l) and bands_right[j].process_sample(sample_r)
-                    // For now, this example will just process left channel to highlight the structure.
-                    // Or, if we assume mono processing at this stage (e.g. before stereo linking):
+                                                              // For stereo, we need separate state for left and right channels per band.
+                                                              // This current BiquadFilter struct is mono.
+                                                              // To handle stereo correctly, ParametricEQ needs two BiquadFilter Vecs,
+                                                              // or BiquadFilter needs to handle stereo state.
+                                                              // For now, processing right channel with the same filter (incorrect state sharing).
+                                                              // This needs to be fixed for proper stereo EQ.
+                                                              // A quick fix: duplicate bands or make BiquadFilter stereo.
+                                                              // For this step, let's assume we want the same EQ curve on L/R
+                                                              // but process them independently regarding state.
+                                                              // This implies ParametricEQ should manage pairs of BiquadFilters or BiquadFilter should be stereo.
+                                                              // The simplest change for now is to acknowledge this limitation.
+                                                              // A correct implementation would require BiquadFilter to be duplicated or made stereo-aware.
+                                                              // Let's process right channel using the same filter instance for now, which is WRONG for state.
+                                                              // sample_r = band.process_sample(sample_r); // THIS IS WRONG due to shared state.
+                                                              //
+                                                              // Correct approach would be:
+                                                              // bands_left[j].process_sample(sample_l) and bands_right[j].process_sample(sample_r)
+                                                              // For now, this example will just process left channel to highlight the structure.
+                                                              // Or, if we assume mono processing at this stage (e.g. before stereo linking):
                 }
             }
             input_left[i] = sample_l;
@@ -247,7 +292,6 @@ impl ParametricEQ {
     // and note its limitations. The StereoParametricEQ is preferred.
 }
 
-
 pub struct StereoParametricEQ {
     bands_left: Vec<BiquadFilter>,
     bands_right: Vec<BiquadFilter>,
@@ -260,36 +304,47 @@ pub struct StereoParametricEQ {
 impl StereoParametricEQ {
     pub fn new(num_bands: usize, initial_sample_rate: f32) -> Self {
         Self {
-            bands_left: (0..num_bands).map(|_| BiquadFilter::new(initial_sample_rate)).collect(),
-            bands_right: (0..num_bands).map(|_| BiquadFilter::new(initial_sample_rate)).collect(),
+            bands_left: (0..num_bands)
+                .map(|_| BiquadFilter::new(initial_sample_rate))
+                .collect(),
+            bands_right: (0..num_bands)
+                .map(|_| BiquadFilter::new(initial_sample_rate))
+                .collect(),
             num_bands,
         }
     }
 
-    pub fn update_band_coeffs(
-        &mut self,
-        band_idx: usize,
-        center_freq: f32,
-        q: f32,
-        gain_db: f32,
-        filter_type: FilterType,
-        enabled: bool,
-        sample_rate: f32,
-    ) {
+    pub fn update_band_coeffs(&mut self, band_idx: usize, sample_rate: f32, config: &BandConfig) {
         if band_idx < self.num_bands {
             // Update left channel band
             let band_l = &mut self.bands_left[band_idx];
-            if (sample_rate - band_l.sample_rate).abs() > 1e-3 { band_l.reset_state(); }
+            if (sample_rate - band_l.sample_rate).abs() > 1e-3 {
+                band_l.reset_state();
+            }
             band_l.sample_rate = sample_rate;
-            band_l.update_coeffs(filter_type, sample_rate, center_freq, q, gain_db);
-            band_l.set_enabled(enabled);
+            band_l.update_coeffs(
+                config.filter_type,
+                sample_rate,
+                config.center_freq,
+                config.q,
+                config.gain_db,
+            );
+            band_l.set_enabled(config.enabled);
 
             // Update right channel band (with same parameters but separate state)
             let band_r = &mut self.bands_right[band_idx];
-            if (sample_rate - band_r.sample_rate).abs() > 1e-3 { band_r.reset_state(); }
+            if (sample_rate - band_r.sample_rate).abs() > 1e-3 {
+                band_r.reset_state();
+            }
             band_r.sample_rate = sample_rate;
-            band_r.update_coeffs(filter_type, sample_rate, center_freq, q, gain_db);
-            band_r.set_enabled(enabled);
+            band_r.update_coeffs(
+                config.filter_type,
+                sample_rate,
+                config.center_freq,
+                config.q,
+                config.gain_db,
+            );
+            band_r.set_enabled(config.enabled);
         }
     }
 
@@ -314,7 +369,8 @@ impl StereoParametricEQ {
 
     pub fn process_block(&mut self, input_left: &mut [f32], input_right: &mut [f32]) {
         for i in 0..input_left.len() {
-            let (processed_l, processed_r) = self.process_stereo_sample(input_left[i], input_right[i]);
+            let (processed_l, processed_r) =
+                self.process_stereo_sample(input_left[i], input_right[i]);
             input_left[i] = processed_l;
             input_right[i] = processed_r;
         }
@@ -328,25 +384,80 @@ mod tests {
 
     const SAMPLE_RATE: f32 = 48000.0;
 
-    fn assert_coeffs_approx_equal(filter: &BiquadFilter, b0: f32, b1: f32, b2: f32, a1: f32, a2: f32, msg: &str) {
+    fn assert_coeffs_approx_equal(
+        filter: &BiquadFilter,
+        b0: f32,
+        b1: f32,
+        b2: f32,
+        a1: f32,
+        a2: f32,
+        msg: &str,
+    ) {
         let tolerance = 1e-2; // Slightly increased tolerance for practical coefficient comparisons
-        assert!((filter.b0 - b0).abs() < tolerance, "{}: b0 mismatch. Expected {:.4}, Got {:.4}", msg, b0, filter.b0);
-        assert!((filter.b1 - b1).abs() < tolerance, "{}: b1 mismatch. Expected {:.4}, Got {:.4}", msg, b1, filter.b1);
-        assert!((filter.b2 - b2).abs() < tolerance, "{}: b2 mismatch. Expected {:.4}, Got {:.4}", msg, b2, filter.b2);
-        assert!((filter.a1 - a1).abs() < tolerance, "{}: a1 mismatch. Expected {:.4}, Got {:.4}", msg, a1, filter.a1);
-        assert!((filter.a2 - a2).abs() < tolerance, "{}: a2 mismatch. Expected {:.4}, Got {:.4}", msg, a2, filter.a2);
+        assert!(
+            (filter.b0 - b0).abs() < tolerance,
+            "{}: b0 mismatch. Expected {:.4}, Got {:.4}",
+            msg,
+            b0,
+            filter.b0
+        );
+        assert!(
+            (filter.b1 - b1).abs() < tolerance,
+            "{}: b1 mismatch. Expected {:.4}, Got {:.4}",
+            msg,
+            b1,
+            filter.b1
+        );
+        assert!(
+            (filter.b2 - b2).abs() < tolerance,
+            "{}: b2 mismatch. Expected {:.4}, Got {:.4}",
+            msg,
+            b2,
+            filter.b2
+        );
+        assert!(
+            (filter.a1 - a1).abs() < tolerance,
+            "{}: a1 mismatch. Expected {:.4}, Got {:.4}",
+            msg,
+            a1,
+            filter.a1
+        );
+        assert!(
+            (filter.a2 - a2).abs() < tolerance,
+            "{}: a2 mismatch. Expected {:.4}, Got {:.4}",
+            msg,
+            a2,
+            filter.a2
+        );
     }
 
     fn assert_sample_approx_equal(expected: f32, actual: f32, tolerance: f32, msg: &str) {
-        assert!((expected - actual).abs() < tolerance, "{}: Expected {:.6}, Got {:.6}", msg, expected, actual);
+        assert!(
+            (expected - actual).abs() < tolerance,
+            "{}: Expected {:.6}, Got {:.6}",
+            msg,
+            expected,
+            actual
+        );
     }
 
     #[test]
     fn test_biquad_initialization_passthrough() {
         let filter = BiquadFilter::new(SAMPLE_RATE);
         // Default new filter is disabled, hence passthrough
-        assert_coeffs_approx_equal(&filter, 1.0, 0.0, 0.0, 0.0, 0.0, "Default new filter (disabled) should be passthrough");
-        assert_eq!(filter.enabled, false, "Filter should be disabled by default");
+        assert_coeffs_approx_equal(
+            &filter,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            "Default new filter (disabled) should be passthrough",
+        );
+        assert_eq!(
+            filter.enabled, false,
+            "Filter should be disabled by default"
+        );
     }
 
     #[test]
@@ -357,39 +468,60 @@ mod tests {
         assert_ne!(filter.b0, 1.0, "b0 should not be 1.0 for an active filter"); // Verify it's not passthrough
 
         filter.set_enabled(false); // Disable it
-        assert_coeffs_approx_equal(&filter, 1.0, 0.0, 0.0, 0.0, 0.0, "set_enabled(false) should force passthrough coeffs");
+        assert_coeffs_approx_equal(
+            &filter,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            "set_enabled(false) should force passthrough coeffs",
+        );
         assert_eq!(filter.enabled, false, "Filter should be disabled");
 
         let input_signal = 0.5;
-        assert_sample_approx_equal(input_signal, filter.process_sample(input_signal), 1e-9, "Passthrough sample processing (disabled filter)");
+        assert_sample_approx_equal(
+            input_signal,
+            filter.process_sample(input_signal),
+            1e-9,
+            "Passthrough sample processing (disabled filter)",
+        );
     }
 
     #[test]
     fn test_peak_filter_coeffs_rbj() {
         let mut filter = BiquadFilter::new(SAMPLE_RATE);
         filter.set_enabled(true); // Enable the filter for coefficient calculation
-        // Test case from RBJ Cookbook: Fs=48000, Fc=7000 Hz, dBGain= -3dB, Q=1.0
-        // omega = 2*pi*7000/48000 = 0.916297857
-        // cos_omega = 0.608761429
-        // sin_omega = 0.79335334
-        // A = 10^(-3/20) = 0.707945784
-        // alpha = sin_omega / (2*Q) = 0.79335334 / 2.0 = 0.39667667
-        //
-        // b0 =   1 + alpha*A     = 1 + 0.39667667 * 0.707945784 = 1.28084
-        // b1 =  -2*cos_omega    = -2 * 0.608761429             = -1.21752
-        // b2 =   1 - alpha*A     = 1 - 0.39667667 * 0.707945784 = 0.71916
-        // a0_t =   1 + alpha/A     = 1 + 0.39667667 / 0.707945784 = 1.56031
-        // a1 =  -2*cos_omega    = -1.21752
-        // a2 =   1 - alpha/A     = 1 - 0.39667667 / 0.707945784 = 0.43969
-        //
-        // Normalized:
-        // b0/a0_t = 1.28084 / 1.56031 = 0.82089
-        // b1/a0_t = -1.21752 / 1.56031 = -0.78031
-        // b2/a0_t = 0.71916 / 1.56031 = 0.46090
-        // a1/a0_t = -1.21752 / 1.56031 = -0.78031
-        // a2/a0_t = 0.43969 / 1.56031 = 0.28179
+                                  // Test case from RBJ Cookbook: Fs=48000, Fc=7000 Hz, dBGain= -3dB, Q=1.0
+                                  // omega = 2*pi*7000/48000 = 0.916297857
+                                  // cos_omega = 0.608761429
+                                  // sin_omega = 0.79335334
+                                  // A = 10^(-3/20) = 0.707945784
+                                  // alpha = sin_omega / (2*Q) = 0.79335334 / 2.0 = 0.39667667
+                                  //
+                                  // b0 =   1 + alpha*A     = 1 + 0.39667667 * 0.707945784 = 1.28084
+                                  // b1 =  -2*cos_omega    = -2 * 0.608761429             = -1.21752
+                                  // b2 =   1 - alpha*A     = 1 - 0.39667667 * 0.707945784 = 0.71916
+                                  // a0_t =   1 + alpha/A     = 1 + 0.39667667 / 0.707945784 = 1.56031
+                                  // a1 =  -2*cos_omega    = -1.21752
+                                  // a2 =   1 - alpha/A     = 1 - 0.39667667 / 0.707945784 = 0.43969
+                                  //
+                                  // Normalized:
+                                  // b0/a0_t = 1.28084 / 1.56031 = 0.82089
+                                  // b1/a0_t = -1.21752 / 1.56031 = -0.78031
+                                  // b2/a0_t = 0.71916 / 1.56031 = 0.46090
+                                  // a1/a0_t = -1.21752 / 1.56031 = -0.78031
+                                  // a2/a0_t = 0.43969 / 1.56031 = 0.28179
         filter.update_coeffs(FilterType::Peak, SAMPLE_RATE, 7000.0, 1.0, -3.0);
-        assert_coeffs_approx_equal(&filter, 0.82089, -0.78031, 0.46090, -0.78031, 0.28179, "Peak Filter 7kHz -3dB Q=1.0");
+        assert_coeffs_approx_equal(
+            &filter,
+            0.82089,
+            -0.78031,
+            0.46090,
+            -0.78031,
+            0.28179,
+            "Peak Filter 7kHz -3dB Q=1.0",
+        );
     }
 
     #[test]
@@ -409,8 +541,22 @@ mod tests {
         // After manual calculation with the formulas in the code:
         // b0 = 0.58805, b1 = -0.93136, b2 = 0.35391
         // a1 = -0.93136, a2 = 0.17021
-        filter.update_coeffs(FilterType::LowShelf, SAMPLE_RATE, 1000.0, SQRT_2/2.0, -6.0);
-        assert_coeffs_approx_equal(&filter, 0.96846, -1.78629, 0.82872, -1.78087, 0.80261, "Low Shelf 1kHz -6dB Q=sqrt(2)/2");
+        filter.update_coeffs(
+            FilterType::LowShelf,
+            SAMPLE_RATE,
+            1000.0,
+            SQRT_2 / 2.0,
+            -6.0,
+        );
+        assert_coeffs_approx_equal(
+            &filter,
+            0.96846,
+            -1.78629,
+            0.82872,
+            -1.78087,
+            0.80261,
+            "Low Shelf 1kHz -6dB Q=sqrt(2)/2",
+        );
     }
 
     #[test]
@@ -428,8 +574,22 @@ mod tests {
         // After manual calculation with the formulas in the code:
         // b0 = 1.09085, b1 = -1.70026, b2 = 0.64553
         // a1 = -1.58233, a2 = 0.65431
-        filter.update_coeffs(FilterType::HighShelf, SAMPLE_RATE, 3000.0, SQRT_2/2.0, 3.0);
-        assert_coeffs_approx_equal(&filter, 1.34745, -2.01746, 0.80895, -1.40796, 0.54691, "High Shelf 3kHz +3dB Q=sqrt(2)/2");
+        filter.update_coeffs(
+            FilterType::HighShelf,
+            SAMPLE_RATE,
+            3000.0,
+            SQRT_2 / 2.0,
+            3.0,
+        );
+        assert_coeffs_approx_equal(
+            &filter,
+            1.34745,
+            -2.01746,
+            0.80895,
+            -1.40796,
+            0.54691,
+            "High Shelf 3kHz +3dB Q=sqrt(2)/2",
+        );
     }
 
     #[test]
@@ -441,7 +601,10 @@ mod tests {
         // Process some non-zero samples to build up state
         filter.process_sample(1.0);
         filter.process_sample(-0.5);
-        assert!(filter.z1 != 0.0 || filter.z2 != 0.0, "Filter state should be non-zero after processing samples.");
+        assert!(
+            filter.z1 != 0.0 || filter.z2 != 0.0,
+            "Filter state should be non-zero after processing samples."
+        );
 
         filter.reset_state();
         assert_eq!(filter.z1, 0.0, "z1 should be 0.0 after reset_state()");
@@ -480,8 +643,10 @@ mod tests {
 
         // Check that the output signal power is reduced compared to input power
         // This is a rough check. A proper check would analyze frequency response.
-        let input_power: f32 = input_signal.iter().map(|&s| s * s).sum::<f32>() / num_samples as f32;
-        let output_power: f32 = output_signal.iter().map(|&s| s * s).sum::<f32>() / num_samples as f32;
+        let input_power: f32 =
+            input_signal.iter().map(|&s| s * s).sum::<f32>() / num_samples as f32;
+        let output_power: f32 =
+            output_signal.iter().map(|&s| s * s).sum::<f32>() / num_samples as f32;
 
         let expected_gain_lin = 10.0f32.powf(gain / 20.0); // Approx 0.5
         let expected_output_power = input_power * expected_gain_lin * expected_gain_lin;

@@ -16,16 +16,16 @@ const MYSOFA_OK: ::std::os::raw::c_int = 0; // Explicitly use c_int type from st
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum SofaError {
-    NulError(NulError),
-    FileOpenError(String),
-    MysofaError(String), // For errors reported by libmysofa functions
-    MysofaFilterError(String), // For errors from mysofa_getfilter_float
-    // Add other specific errors as needed
+    Nul(NulError),
+    FileOpen(String),
+    Mysofa(String), // For errors reported by libmysofa functions
+    MysofaFilter(String), // For errors from mysofa_getfilter_float
+                    // Add other specific errors as needed
 }
 
 impl From<NulError> for SofaError {
     fn from(err: NulError) -> Self {
-        SofaError::NulError(err)
+        SofaError::Nul(err)
     }
 }
 
@@ -79,7 +79,7 @@ impl MySofa {
             // It's useful to get a more descriptive error if possible.
             // libmysofa doesn't have a direct error string function for mysofa_open errors.
             // We'll return a generic one based on the error code.
-            return Err(SofaError::FileOpenError(format!(
+            return Err(SofaError::FileOpen(format!(
                 "Failed to open SOFA file '{}'. Mysofa error code: {}",
                 filepath, err_code_open
             )));
@@ -92,11 +92,13 @@ impl MySofa {
             // (*(*handle).hrtf).DataSamplingRate is MYSOFA_ARRAY (not a pointer)
             let data_sampling_rate_array = (*(*handle).hrtf).DataSamplingRate;
             if data_sampling_rate_array.values.is_null() {
-                 // This check might be problematic if .values itself is not guaranteed
-                 // to be non-null even if elements > 0, but it's a start.
-                 // Or, if elements == 0, then values might be null or invalid.
-                 // A robust check would involve data_sampling_rate_array.elements.
-                 return Err(SofaError::MysofaError("DataSamplingRate values pointer is null.".to_string()));
+                // This check might be problematic if .values itself is not guaranteed
+                // to be non-null even if elements > 0, but it's a start.
+                // Or, if elements == 0, then values might be null or invalid.
+                // A robust check would involve data_sampling_rate_array.elements.
+                return Err(SofaError::Mysofa(
+                    "DataSamplingRate values pointer is null.".to_string(),
+                ));
             }
             // data_sampling_rate_array.values is *mut f32 as per bindgen output in last error
             data_sampling_rate_array.values.read()
@@ -124,10 +126,12 @@ impl MySofa {
         radius_m: f32,
     ) -> Result<(Vec<f32>, Vec<f32>), SofaError> {
         if self.handle.is_null() {
-            return Err(SofaError::MysofaError("MySofa handle is not initialized.".to_string()));
+            return Err(SofaError::Mysofa(
+                "MySofa handle is not initialized.".to_string(),
+            ));
         }
         if self.filter_length == 0 {
-             return Err(SofaError::MysofaError("Filter length is zero.".to_string()));
+            return Err(SofaError::Mysofa("Filter length is zero.".to_string()));
         }
 
         // Convert spherical (AES69 convention: azimuth, elevation, radius) to Cartesian (X,Y,Z for mysofa)
@@ -165,8 +169,8 @@ impl MySofa {
             )
         };
 
-            if err_code_filter != MYSOFA_OK {
-            return Err(SofaError::MysofaFilterError(format!(
+        if err_code_filter != MYSOFA_OK {
+            return Err(SofaError::MysofaFilter(format!(
                 "mysofa_getfilter_float failed with code: {}",
                 err_code_filter
             )));
@@ -226,7 +230,10 @@ mod tests {
     #[test]
     fn test_open_non_existent_file() {
         // Use a more specific non-existent path for this test
-        match MySofa::open("/tmp/some_hopefully_non_existent_sofa_file_for_test.sofa", 48000.0) {
+        match MySofa::open(
+            "/tmp/some_hopefully_non_existent_sofa_file_for_test.sofa",
+            48000.0,
+        ) {
             Err(SofaError::FileOpenError(_)) => {
                 // Expected error
             }
@@ -249,7 +256,7 @@ mod tests {
             eprintln!(
                 "Test SOFA file '{}' not found. Skipping HRTF filter error test logic. \
                  This test primarily validates the error path if mysofa_getfilter_float fails.",
-                 TEST_SOFA_PATH
+                TEST_SOFA_PATH
             );
             // We can still proceed with a dummy MySofa if open fails in a specific way,
             // but the MySofa::open itself will likely fail with FileOpenError first.
@@ -273,7 +280,10 @@ mod tests {
                         panic!("mysofa_getfilter_float did not return an error for potentially invalid parameters (radius 0.0). This might indicate the specific SOFA file handles this case gracefully, or the error condition wasn't triggered as expected.");
                     }
                     Err(e) => {
-                        panic!("Expected MysofaFilterError, but got a different error: {:?}", e);
+                        panic!(
+                            "Expected MysofaFilterError, but got a different error: {:?}",
+                            e
+                        );
                     }
                 }
             }
@@ -288,7 +298,10 @@ mod tests {
                 // For now, we accept it as this environment doesn't guarantee the file.
             }
             Err(e) => {
-                panic!("Failed to open test SOFA file with an unexpected error: {:?}", e);
+                panic!(
+                    "Failed to open test SOFA file with an unexpected error: {:?}",
+                    e
+                );
             }
         }
     }
@@ -302,8 +315,17 @@ mod tests {
         let spherical_out = MySofa::cartesian_to_spherical(&cartesian);
 
         const TOLERANCE: f32 = 1e-3; // Radians to/from degrees can have small errors
-        assert!((spherical_in[0] - spherical_out[0]).abs() < TOLERANCE, "Azimuth mismatch");
-        assert!((spherical_in[1] - spherical_out[1]).abs() < TOLERANCE, "Elevation mismatch");
-        assert!((spherical_in[2] - spherical_out[2]).abs() < TOLERANCE, "Radius mismatch");
+        assert!(
+            (spherical_in[0] - spherical_out[0]).abs() < TOLERANCE,
+            "Azimuth mismatch"
+        );
+        assert!(
+            (spherical_in[1] - spherical_out[1]).abs() < TOLERANCE,
+            "Elevation mismatch"
+        );
+        assert!(
+            (spherical_in[2] - spherical_out[2]).abs() < TOLERANCE,
+            "Radius mismatch"
+        );
     }
 }

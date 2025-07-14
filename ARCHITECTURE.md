@@ -162,6 +162,10 @@ This directory contains modules for various audio processing tasks.
     *   If build or test procedures are fundamentally altered.
     *   Minor changes or bug fixes within existing modules usually don't require updating this document, but ensure code comments and the `CHANGELOG.md` are up to date.
 
+## 8. Documentation
+
+*   **CLAP Plugin Development Guide:** For detailed information on CLAP plugin development using `nih-plug`, SOFA integration, DSP implementation, and UI design, refer to the `CLAP Plugin Development Documentation.md` file in the project root. This document serves as a comprehensive guide for the technical implementation aspects of the plugin.
+
 ---
 
 This document is a living guide. It should be updated as the project evolves.

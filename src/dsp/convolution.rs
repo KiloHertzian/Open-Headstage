@@ -12,7 +12,10 @@ const FFT_SIZE: usize = BLOCK_SIZE * 2; // FFT size, typically 2 * block_size fo
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum ConvolutionPath {
-    LSL, LSR, RSL, RSR,
+    Lsl,
+    Lsr,
+    Rsl,
+    Rsr,
 }
 
 /// Holds the data for a single convolution path, adapted for partitioned convolution.
@@ -29,10 +32,13 @@ impl ConvolutionPathData {
         // Default to a single partition representing silence (or passthrough if IR is [1.0])
         let default_ir = vec![0.0f32; BLOCK_SIZE];
         // default_ir[0] = 1.0; // for passthrough
-        
+
         let mut padded_ir = default_ir;
         padded_ir.resize(FFT_SIZE, 0.0);
-        let mut ir_fft = padded_ir.into_iter().map(|s| Complex::new(s, 0.0)).collect::<Vec<_>>();
+        let mut ir_fft = padded_ir
+            .into_iter()
+            .map(|s| Complex::new(s, 0.0))
+            .collect::<Vec<_>>();
         fft_plan.process(&mut ir_fft);
 
         Self {
@@ -47,7 +53,7 @@ impl ConvolutionPathData {
 /// Manages four convolution paths for binaural processing using partitioned convolution.
 pub struct ConvolutionEngine {
     paths: [ConvolutionPathData; 4],
-    
+
     forward_fft: Arc<dyn Fft<f32>>,
     inverse_fft: Arc<dyn Fft<f32>>,
 
@@ -101,13 +107,16 @@ impl ConvolutionEngine {
                 .map(|ir_chunk| {
                     let mut padded_chunk = ir_chunk.to_vec();
                     padded_chunk.resize(FFT_SIZE, 0.0);
-                    let mut complex_chunk = padded_chunk.into_iter().map(|s| Complex::new(s, 0.0)).collect::<Vec<_>>();
+                    let mut complex_chunk = padded_chunk
+                        .into_iter()
+                        .map(|s| Complex::new(s, 0.0))
+                        .collect::<Vec<_>>();
                     self.forward_fft.process(&mut complex_chunk);
                     complex_chunk
                 })
                 .collect();
         }
-        
+
         let num_partitions = path_data.ir_fft_partitions.len();
         path_data.input_fft_history = vec![vec![Complex::new(0.0, 0.0); FFT_SIZE]; num_partitions];
         path_data.history_index = 0;
@@ -128,16 +137,27 @@ impl ConvolutionEngine {
         while self.input_buffer_l.len() >= BLOCK_SIZE {
             let input_chunk_l = self.input_buffer_l.drain(..BLOCK_SIZE).collect::<Vec<_>>();
             let input_chunk_r = self.input_buffer_r.drain(..BLOCK_SIZE).collect::<Vec<_>>();
-            
-            let (processed_l, processed_r) = self.process_internal_block(&input_chunk_l, &input_chunk_r);
-            
+
+            let (processed_l, processed_r) =
+                self.process_internal_block(&input_chunk_l, &input_chunk_r);
+
             self.output_buffer_l.extend_from_slice(&processed_l);
             self.output_buffer_r.extend_from_slice(&processed_r);
         }
 
         if self.output_buffer_l.len() >= num_samples {
-            output_left.copy_from_slice(&self.output_buffer_l.drain(..num_samples).collect::<Vec<_>>());
-            output_right.copy_from_slice(&self.output_buffer_r.drain(..num_samples).collect::<Vec<_>>());
+            output_left.copy_from_slice(
+                &self
+                    .output_buffer_l
+                    .drain(..num_samples)
+                    .collect::<Vec<_>>(),
+            );
+            output_right.copy_from_slice(
+                &self
+                    .output_buffer_r
+                    .drain(..num_samples)
+                    .collect::<Vec<_>>(),
+            );
         } else {
             // This case should ideally not be hit if input/output lengths match,
             // but as a fallback, output silence to prevent weird audio artifacts.
@@ -155,10 +175,38 @@ impl ConvolutionEngine {
             let (path_lsl, path_lsr) = paths_l.split_at_mut(1);
             let (path_rsl, path_rsr) = paths_r.split_at_mut(1);
 
-            let lsl = convolve_path_partitioned(input_l, &mut path_lsl[0], &self.forward_fft, &self.inverse_fft, &mut self.input_fft_buffer, &mut self.conv_accumulator);
-            let lsr = convolve_path_partitioned(input_l, &mut path_lsr[0], &self.forward_fft, &self.inverse_fft, &mut self.input_fft_buffer, &mut self.conv_accumulator);
-            let rsl = convolve_path_partitioned(input_r, &mut path_rsl[0], &self.forward_fft, &self.inverse_fft, &mut self.input_fft_buffer, &mut self.conv_accumulator);
-            let rsr = convolve_path_partitioned(input_r, &mut path_rsr[0], &self.forward_fft, &self.inverse_fft, &mut self.input_fft_buffer, &mut self.conv_accumulator);
+            let lsl = convolve_path_partitioned(
+                input_l,
+                &mut path_lsl[0],
+                &self.forward_fft,
+                &self.inverse_fft,
+                &mut self.input_fft_buffer,
+                &mut self.conv_accumulator,
+            );
+            let lsr = convolve_path_partitioned(
+                input_l,
+                &mut path_lsr[0],
+                &self.forward_fft,
+                &self.inverse_fft,
+                &mut self.input_fft_buffer,
+                &mut self.conv_accumulator,
+            );
+            let rsl = convolve_path_partitioned(
+                input_r,
+                &mut path_rsl[0],
+                &self.forward_fft,
+                &self.inverse_fft,
+                &mut self.input_fft_buffer,
+                &mut self.conv_accumulator,
+            );
+            let rsr = convolve_path_partitioned(
+                input_r,
+                &mut path_rsr[0],
+                &self.forward_fft,
+                &self.inverse_fft,
+                &mut self.input_fft_buffer,
+                &mut self.conv_accumulator,
+            );
             (lsl, lsr, rsl, rsr)
         };
 
@@ -175,29 +223,35 @@ fn convolve_path_partitioned(
     path_data: &mut ConvolutionPathData,
     forward_fft: &Arc<dyn Fft<f32>>,
     inverse_fft: &Arc<dyn Fft<f32>>,
-    input_fft_buffer: &mut Vec<Complex<f32>>,
-    conv_accumulator: &mut Vec<Complex<f32>>,
+    input_fft_buffer: &mut [Complex<f32>],
+    conv_accumulator: &mut [Complex<f32>],
 ) -> Vec<f32> {
     // 1. FFT the current input block
-    for i in 0..BLOCK_SIZE {
-        input_fft_buffer[i] = Complex::new(input_signal[i], 0.0);
+    for (i, sample) in input_signal.iter().enumerate() {
+        input_fft_buffer[i] = Complex::new(*sample, 0.0);
     }
-    for i in BLOCK_SIZE..FFT_SIZE {
-        input_fft_buffer[i] = Complex::new(0.0, 0.0);
+    for val in input_fft_buffer
+        .iter_mut()
+        .skip(BLOCK_SIZE)
+        .take(FFT_SIZE - BLOCK_SIZE)
+    {
+        *val = Complex::new(0.0, 0.0);
     }
     forward_fft.process(input_fft_buffer);
 
     // 2. Store in history and advance index
-    path_data.input_fft_history[path_data.history_index] = input_fft_buffer.clone();
-    
+    path_data.input_fft_history[path_data.history_index] = input_fft_buffer.to_vec();
+
     // 3. Perform convolution with all partitions
-    conv_accumulator.iter_mut().for_each(|c| *c = Complex::new(0.0, 0.0));
+    conv_accumulator
+        .iter_mut()
+        .for_each(|c| *c = Complex::new(0.0, 0.0));
     let num_partitions = path_data.ir_fft_partitions.len();
     for i in 0..num_partitions {
         let history_idx = (path_data.history_index + num_partitions - i) % num_partitions;
         let input_fft = &path_data.input_fft_history[history_idx];
         let ir_fft = &path_data.ir_fft_partitions[i];
-        
+
         for j in 0..FFT_SIZE {
             conv_accumulator[j] += input_fft[j] * ir_fft[j];
         }
@@ -213,12 +267,11 @@ fn convolve_path_partitioned(
         output[i] = conv_accumulator[i].re * scale + path_data.overlap_buffer[i];
         path_data.overlap_buffer[i] = conv_accumulator[i + BLOCK_SIZE].re * scale;
     }
-    
+
     path_data.history_index = (path_data.history_index + 1) % num_partitions;
 
     output
 }
-
 
 impl Default for ConvolutionEngine {
     fn default() -> Self {
@@ -235,7 +288,14 @@ mod tests {
     fn assert_approx_eq_slice(a: &[f32], b: &[f32], tolerance: f32, msg: &str) {
         assert_eq!(a.len(), b.len(), "Slice length mismatch in '{}'", msg);
         for (i, (x, y)) in a.iter().zip(b.iter()).enumerate() {
-            assert!((x - y).abs() < tolerance, "Mismatch at index {} in '{}': {} vs {}", i, msg, x, y);
+            assert!(
+                (x - y).abs() < tolerance,
+                "Mismatch at index {} in '{}': {} vs {}",
+                i,
+                msg,
+                x,
+                y
+            );
         }
     }
 
@@ -253,12 +313,22 @@ mod tests {
         let mut output_r = vec![0.0; BLOCK_SIZE];
 
         engine.process_block(&input_l, &input_r, &mut output_l, &mut output_r);
-        
+
         // The first block will have a delay due to processing, so we check the second block
         engine.process_block(&input_l, &input_r, &mut output_l, &mut output_r);
 
-        assert_approx_eq_slice(&output_l, &input_l, TOLERANCE, "Identity passthrough L channel");
-        assert_approx_eq_slice(&output_r, &input_r, TOLERANCE, "Identity passthrough R channel");
+        assert_approx_eq_slice(
+            &output_l,
+            &input_l,
+            TOLERANCE,
+            "Identity passthrough L channel",
+        );
+        assert_approx_eq_slice(
+            &output_r,
+            &input_r,
+            TOLERANCE,
+            "Identity passthrough R channel",
+        );
     }
 
     #[test]
@@ -287,11 +357,16 @@ mod tests {
         for i in delay_samples..(BLOCK_SIZE * 2) {
             expected_output[i] = input_l[i - delay_samples];
         }
-        
+
         // We check the output after enough samples have been processed to overcome initial latency
-        assert_approx_eq_slice(&output_l[delay_samples..], &expected_output[delay_samples..], TOLERANCE, "Delayed signal");
+        assert_approx_eq_slice(
+            &output_l[delay_samples..],
+            &expected_output[delay_samples..],
+            TOLERANCE,
+            "Delayed signal",
+        );
     }
-    
+
     #[test]
     fn test_long_ir_partitioning() {
         let mut engine = ConvolutionEngine::new();
@@ -300,9 +375,13 @@ mod tests {
         let mut ir = vec![0.0; ir_len];
         ir[0] = 1.0; // Passthrough part
         ir[ir_len - 1] = 0.5; // Echo part
-        
+
         engine.set_ir(ConvolutionPath::LSL, &ir);
-        assert_eq!(engine.paths[0].ir_fft_partitions.len(), 2, "IR should be split into 2 partitions");
+        assert_eq!(
+            engine.paths[0].ir_fft_partitions.len(),
+            2,
+            "IR should be split into 2 partitions"
+        );
 
         let mut input_l = vec![0.0; BLOCK_SIZE * 3];
         input_l[0] = 1.0; // Impulse
@@ -318,6 +397,11 @@ mod tests {
         expected_output[ir_len - 1] = 0.5;
 
         // Check the relevant part of the output
-        assert_approx_eq_slice(&output_l[0..ir_len], &expected_output[0..ir_len], TOLERANCE, "Long IR convolution");
+        assert_approx_eq_slice(
+            &output_l[0..ir_len],
+            &expected_output[0..ir_len],
+            TOLERANCE,
+            "Long IR convolution",
+        );
     }
 }
