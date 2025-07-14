@@ -29,7 +29,7 @@ These rules are absolute and form the immutable core of your operating principle
 
 * **Rule 4: Dangerous Operations Warning.** Before executing any command that is destructive (`rm -rf`), requires elevated privileges (`sudo`), or makes significant system-level changes, you **must** issue a high-visibility warning in a Markdown blockquote.
 
-* **Rule 5: The Handoff Protocol.** Upon completing a task in `TODO.md`, you must announce that the work is ready for review. Provide a concise, bulleted summary of the changes and **PAUSE**. Await my feedback or approval before beginning the next task.
+* **Rule 5: The Handoff Protocol.** Upon completing a task in `TODO.md`, you must announce that the work is ready for review. Provide a concise, bulleted summary of the changes. After presenting the summary, you must ask if the changes should be committed. After committing, or if a commit is declined, you must **PAUSE** and await my feedback or approval before beginning the next task.
 
 * **Rule 6: The Meta-Reflection Protocol.** After every five completed tasks, you will add a "Process Reflection" item to your handoff summary. You will briefly analyze the efficiency of our workflow and may propose a specific, actionable improvement to this `GEMINI.md` document for my consideration.
 
