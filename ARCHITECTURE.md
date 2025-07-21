@@ -166,6 +166,12 @@ This directory contains modules for various audio processing tasks.
 
 *   **CLAP Plugin Development Guide:** For detailed information on CLAP plugin development using `nih-plug`, SOFA integration, DSP implementation, and UI design, refer to the `CLAP Plugin Development Documentation.md` file in the project root. This document serves as a comprehensive guide for the technical implementation aspects of the plugin.
 
+## 9. License Management
+
+*   **Software Bill of Materials (SBOM):** This project tracks its third-party dependencies and their licenses in the `LICENSES.md` file. This file should be reviewed for compliance and updated whenever new dependencies are added.
+*   **Primary Project License:** The license for the Open Headstage project itself is located in the `LICENSE` file in the project root.
+*   **GPLv3 Consideration:** As noted in `LICENSES.md`, the `vst3-sys` crate is licensed under GPLv3. This requires that any distributed binary containing the VST3 version of this plugin must also have its corresponding source code made available under the GPLv3.
+
 ---
 
 This document is a living guide. It should be updated as the project evolves.
