@@ -31,7 +31,7 @@ rfd = { version = "0.14", optional = true } # File dialog for SOFA loading
 bindgen = "0.70"
 
 [features]
-default = []
+default = ["ui"]
 ui = ["nih_plug_egui", "rfd"]
 
 [lib]

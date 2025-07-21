@@ -172,6 +172,15 @@ This directory contains modules for various audio processing tasks.
 *   **Primary Project License:** The license for the Open Headstage project itself is located in the `LICENSE` file in the project root.
 *   **GPLv3 Consideration:** As noted in `LICENSES.md`, the `vst3-sys` crate is licensed under GPLv3. This requires that any distributed binary containing the VST3 version of this plugin must also have its corresponding source code made available under the GPLv3.
 
+## 10. Future Vision
+
+This section outlines potential future directions for the project, building upon the current architecture.
+
+*   **Surround Sound to Stereo Mixdown:** A significant future goal is to extend the engine to support 5.1 and 7.1 surround sound input, using the convolution engine to render a high-quality binaural mixdown for headphones. This would involve:
+    *   Expanding the plugin's input channel configuration.
+    *   Managing a full set of HRTFs for each surround channel (e.g., L, R, C, LFE, Ls, Rs, etc.).
+    *   Extending the `ConvolutionEngine` to handle more than two input channels.
+
 ---
 
 This document is a living guide. It should be updated as the project evolves.
