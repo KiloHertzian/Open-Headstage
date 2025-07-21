@@ -675,14 +675,18 @@ mod tests {
         let mut impulse = vec![0.0; fft_size];
         impulse[0] = 1.0;
 
-        let impulse_response: Vec<f32> =
-            impulse.into_iter().map(|s| filter.process_sample(s)).collect();
+        let impulse_response: Vec<f32> = impulse
+            .into_iter()
+            .map(|s| filter.process_sample(s))
+            .collect();
 
         // Get frequency response
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(fft_size);
-        let mut buffer: Vec<Complex<f32>> =
-            impulse_response.iter().map(|&s| Complex::new(s, 0.0)).collect();
+        let mut buffer: Vec<Complex<f32>> = impulse_response
+            .iter()
+            .map(|&s| Complex::new(s, 0.0))
+            .collect();
         fft.process(&mut buffer);
 
         // --- Assertions ---
