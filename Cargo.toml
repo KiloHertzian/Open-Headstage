@@ -4,35 +4,22 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.87"
 
-[workspace]
-members = [
-    ".",
-    "xtask",
-]
-
 [dependencies]
-# Plugin framework
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs"] }
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
+rfd = { version = "0.10", optional = true }
 
-# DSP
-rustfft = "6.0"
-realfft = "3.0"
-rubato = "0.16"
+parking_lot = { version = "0.12", features = ["serde"] }
 
-# SOFA file handling (via FFI)
-# libmysofa-sys = "0.1" # Would need to create or find appropriate bindings
 
-# Utility
-serde = { version = "1.0", features = ["derive"] }
-rfd = { version = "0.14", optional = true } # File dialog for SOFA loading
-
-[build-dependencies]
-bindgen = "0.70"
+rustfft = "6.4.0"
 
 [features]
 default = ["ui"]
 ui = ["nih_plug_egui", "rfd"]
+
+[build-dependencies]
+bindgen = "0.70"
 
 [lib]
 crate-type = ["cdylib"]
