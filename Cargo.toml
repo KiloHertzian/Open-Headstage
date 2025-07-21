@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.87"
 
+[workspace]
+members = [
+    ".",
+    "xtask",
+]
+
 [dependencies]
 # Plugin framework
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git" }
