@@ -1,0 +1,11 @@
+feat(sofa): Create script to process HRIR data
+
+Adds a Python script to automate the acquisition and processing of HRIR data for testing and default plugin operation.
+
+- Creates `scripts/process_sofa.py` which downloads a SOFA file from the CIPIC database.
+- The script extracts HRIRs for speaker angles of +/- 30 degrees.
+- It then saves the processed data as a 4-channel WAV file (`processed_hrir.wav`) in the `data/hrtf` directory.
+- Adds `scripts/requirements.txt` for Python dependencies.
+- Updates `.gitignore` to exclude the `data/` directory.
+
+This provides a consistent and automated way to generate the necessary test assets for the convolution engine.
