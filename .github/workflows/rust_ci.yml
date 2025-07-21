@@ -27,8 +27,9 @@ jobs:
           sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@1.78.0
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.87.0
           components: rustfmt, clippy # Add other components like 'llvm-tools-preview' if needed later
 
 #      - name: Cache Cargo dependencies

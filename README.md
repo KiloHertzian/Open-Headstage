@@ -81,8 +81,25 @@ graph TD
     style K_Params fill:#whitesmoke,stroke:#333,stroke-width:2px
 ```
 
+## Requirements
+- **Rust:** Version 1.87.0 or newer.
+- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`. You can install these on a Debian-based system using:
+  ```bash
+  sudo apt-get update
+  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev
+  ```
+
 ## Building from Source
-(This section will detail the steps to compile the project, including installing Rust, any system dependencies (like `libmysofa` development files), and running `cargo build`.)
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/Open-Headstage.git
+    cd Open-Headstage
+    ```
+2.  **Build the plugin:**
+    ```bash
+    cargo build --release
+    ```
+The compiled plugin (`libopen_headstage.so`) will be located in the `target/release` directory. You can then copy this file to your CLAP plugin directory (e.g., `~/.clap`).
 
 ## How to Contribute
 (This section will outline the process for contributing, such as forking the repository, creating a new branch, submitting pull requests, and linking to the issue templates.)

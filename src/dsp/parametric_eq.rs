@@ -657,4 +657,72 @@ mod tests {
                 input_power, output_power, expected_gain_lin.powi(2));
         // A more precise test would be to measure gain at Fc after filter settles.
     }
+
+    #[test]
+    fn test_peak_filter_frequency_response() {
+        use rustfft::num_complex::Complex;
+        use rustfft::FftPlanner;
+
+        let mut filter = BiquadFilter::new(SAMPLE_RATE);
+        filter.set_enabled(true);
+        let fc = 5000.0;
+        let q = 1.414;
+        let gain_db = 6.0;
+        filter.update_coeffs(FilterType::Peak, SAMPLE_RATE, fc, q, gain_db);
+
+        // Get impulse response
+        let fft_size = 1024;
+        let mut impulse = vec![0.0; fft_size];
+        impulse[0] = 1.0;
+
+        let mut impulse_response: Vec<f32> =
+            impulse.into_iter().map(|s| filter.process_sample(s)).collect();
+
+        // Get frequency response
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(fft_size);
+        let mut buffer: Vec<Complex<f32>> =
+            impulse_response.iter().map(|&s| Complex::new(s, 0.0)).collect();
+        fft.process(&mut buffer);
+
+        // --- Assertions ---
+
+        // Find the bin with the maximum energy
+        let (max_bin, _max_magnitude_val) = buffer
+            .iter()
+            .take(fft_size / 2) // Only check the first half of the spectrum
+            .enumerate()
+            .map(|(i, c)| (i, c.norm()))
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .unwrap();
+
+        let max_freq = max_bin as f32 * SAMPLE_RATE / fft_size as f32;
+
+        // Assert that the peak frequency is close to our target Fc
+        assert!(
+            (max_freq - fc).abs() < 200.0,
+            "Peak frequency should be near Fc. Expected {}, got {:.1}",
+            fc,
+            max_freq
+        );
+
+        // 2. Check gain at DC (0 Hz)
+        // For a peak filter not at DC, gain at 0 Hz should be close to 1.0 (0 dB)
+        // The magnitude here is not normalized to dB, it's the raw FFT output magnitude.
+        // For an impulse of 1.0, the DC gain of the filter should be close to 1.0.
+        let magnitude_at_dc = buffer[0].norm();
+        assert!(
+            (magnitude_at_dc - 1.0).abs() < 0.1,
+            "Gain at DC should be close to 1.0. Got {:.4}",
+            magnitude_at_dc
+        );
+
+        // 3. Check gain at Nyquist
+        let magnitude_at_nyquist = buffer[fft_size / 2].norm();
+        assert!(
+            (magnitude_at_nyquist - 1.0).abs() < 0.1,
+            "Gain at Nyquist should be close to 1.0. Got {:.4}",
+            magnitude_at_nyquist
+        );
+    }
 }
