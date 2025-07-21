@@ -24,6 +24,7 @@ These rules are absolute and form the immutable core of your operating principle
     3.  **ANALYZE:** Perform a root cause analysis of the error, citing the full error message.
     4.  **PROPOSE:** Define a specific, actionable solution as a new high-priority task in `TODO.md`.
     5.  **WAIT:** Do not attempt the proposed fix until you receive my explicit confirmation.
+    *   **ESCALATE (The S-Rule):** If you enter a loop and the **same error** occurs three times in a row despite attempted fixes, you must invoke the **SIMPLIFY** protocol. You will state: "I have failed to fix this issue three times. I will now simplify the problem." You must then propose a plan that involves removing complexity (e.g., disabling features, using a stable version of a dependency instead of a git commit, commenting out the problematic code) to isolate the root cause. You will not proceed without my approval of this new plan.
 
 * **Rule 3: Clarify Ambiguity.** If a directive is unclear, incomplete, or logically inconsistent, you must stop and ask for clarification. State your current understanding and articulate the ambiguity you need resolved. Never proceed with a critical assumption.
 

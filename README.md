@@ -1,10 +1,40 @@
 # Open Headstage
 
-Open Headstage is an open-source binaural speaker simulation plugin for headphones, designed for Linux-based audio professionals and enthusiasts.
-The goal is to provide a high-quality, flexible tool for experiencing stereo audio as if listening to physical speakers in a well-defined acoustic space.
+Open Headstage is an open-source binaural speaker simulation plugin for headphones, designed for Linux-based audio professionals and enthusiasts. The goal is to provide a high-quality, flexible tool for experiencing stereo audio as if listening to physical speakers in a well-defined acoustic space.
 
-## Current Phase
-Phase 1: Anechoic Core Development (Project Initialization)
+## Current Status
+
+**This project is in an alpha stage.** The core features are implemented, and the plugin compiles and passes basic validation. However, there are known issues with running it in some plugin hosts like Carla. The UI is functional but incomplete.
+
+*   **Working:**
+    *   Compiles as a CLAP and VST3 plugin.
+    *   Passes `clap-validator` tests.
+    *   Core signal path (EQ -> Convolution -> Gain) is implemented.
+    *   Loading SOFA files via the UI file dialog.
+    *   Functional UI for core parameters (Gain, Speaker Angles).
+*   **Not Working / Incomplete:**
+    *   **Host Compatibility:** Fails to load or run correctly in some hosts (e.g., Carla). This is the highest priority issue to resolve.
+    *   **Incomplete UI:** The 10-band parametric EQ is functional in the audio engine but is not yet fully represented in the UI.
+
+## Signal Path
+
+The audio processing follows this order:
+
+1.  **Stereo Audio Input**
+2.  **(Optional) 10-Band Parametric EQ:** If enabled, the signal is processed by a stereo parametric equalizer. By default, this is disabled and provides a flat response.
+3.  **Binaural Convolution Engine:** The signal is convolved with Head-Related Transfer Functions (HRTFs) loaded from a SOFA file. This stage spatializes the sound.
+4.  **Output Gain:** A final gain stage adjusts the output volume.
+5.  **Stereo Audio Output**
+
+## How to Use
+
+1.  Load the plugin in your CLAP-compatible host.
+2.  Click the "Select SOFA File" button to load a `.sofa` HRTF file.
+3.  Adjust the speaker azimuth and elevation to your preference.
+4.  Use the "Output Gain" to control the final volume.
+5.  The Parametric EQ is disabled by default.
+
+---
 
 ## Core Features (MVP - Phase 1)
 - Binaural Convolution Engine (4-path for anechoic HRTFs)
@@ -83,10 +113,10 @@ graph TD
 
 ## Requirements
 - **Rust:** Version 1.87.0 or newer.
-- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`. You can install these on a Debian-based system using:
+- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`, `libgtk-3-dev`. You can install these on a Debian-based system using:
   ```bash
   sudo apt-get update
-  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev
+  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libgtk-3-dev
   ```
 
 ## Building from Source
