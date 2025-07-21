@@ -454,8 +454,8 @@ mod tests {
             0.0,
             "Default new filter (disabled) should be passthrough",
         );
-        assert_eq!(
-            filter.enabled, false,
+        assert!(
+            !filter.enabled,
             "Filter should be disabled by default"
         );
     }
@@ -477,7 +477,7 @@ mod tests {
             0.0,
             "set_enabled(false) should force passthrough coeffs",
         );
-        assert_eq!(filter.enabled, false, "Filter should be disabled");
+        assert!(!filter.enabled, "Filter should be disabled");
 
         let input_signal = 0.5;
         assert_sample_approx_equal(

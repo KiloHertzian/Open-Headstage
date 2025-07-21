@@ -344,8 +344,8 @@ mod tests {
         engine.set_ir(ConvolutionPath::Rsr, &[0.0]);
 
         let mut input_l = vec![0.0; BLOCK_SIZE * 2];
-        for i in 0..input_l.len() {
-            input_l[i] = i as f32;
+        for (i, sample) in input_l.iter_mut().enumerate() {
+            *sample = i as f32;
         }
         let input_r = vec![0.0; BLOCK_SIZE * 2];
         let mut output_l = vec![0.0; BLOCK_SIZE * 2];
@@ -354,9 +354,9 @@ mod tests {
         engine.process_block(&input_l, &input_r, &mut output_l, &mut output_r);
 
         let mut expected_output = vec![0.0; BLOCK_SIZE * 2];
-        for i in delay_samples..(BLOCK_SIZE * 2) {
-            expected_output[i] = input_l[i - delay_samples];
-        }
+        let end_index = BLOCK_SIZE * 2;
+        expected_output[delay_samples..end_index]
+            .copy_from_slice(&input_l[..(end_index - delay_samples)]);
 
         // We check the output after enough samples have been processed to overcome initial latency
         assert_approx_eq_slice(
