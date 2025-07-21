@@ -454,10 +454,7 @@ mod tests {
             0.0,
             "Default new filter (disabled) should be passthrough",
         );
-        assert!(
-            !filter.enabled,
-            "Filter should be disabled by default"
-        );
+        assert!(!filter.enabled, "Filter should be disabled by default");
     }
 
     #[test]
