@@ -649,7 +649,7 @@ mod tests {
             output_signal.iter().map(|&s| s * s).sum::<f32>() / num_samples as f32;
 
         let expected_gain_lin = 10.0f32.powf(gain / 20.0); // Approx 0.5
-        let expected_output_power = input_power * expected_gain_lin * expected_gain_lin;
+        let _expected_output_power = input_power * expected_gain_lin * expected_gain_lin;
 
         // Allow some leeway due to filter transient, Q, and approximation
         assert!(output_power < input_power * 0.8, // Should be significantly less than input (0.8 is arbitrary)
@@ -675,7 +675,7 @@ mod tests {
         let mut impulse = vec![0.0; fft_size];
         impulse[0] = 1.0;
 
-        let mut impulse_response: Vec<f32> =
+        let impulse_response: Vec<f32> =
             impulse.into_iter().map(|s| filter.process_sample(s)).collect();
 
         // Get frequency response
