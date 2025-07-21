@@ -113,10 +113,10 @@ graph TD
 
 ## Requirements
 - **Rust:** Version 1.87.0 or newer.
-- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`, `libglib2.0-dev`. You can install these on a Debian-based system using:
+- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`, `libglib2.0-dev`, `libatk1.0-dev`. You can install these on a Debian-based system using:
   ```bash
   sudo apt-get update
-  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libglib2.0-dev
+  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libglib2.0-dev libatk1.0-dev
   ```
 
 ## Building from Source
