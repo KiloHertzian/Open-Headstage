@@ -1,0 +1,6 @@
+06:10:25 [INFO] Plugin initialized. Sample rate: 44100
+06:10:25 [INFO] SOFA file path on initialization: ''
+06:10:25 [INFO] No SOFA file path configured. Skipping SOFA loading.
+06:10:25 [INFO] Convolution engine (re)initialized.
+06:10:25 [INFO] Parametric EQ initialized with 10 bands at 44100 Hz.
+06:10:25 [INFO] Plugin reset.
