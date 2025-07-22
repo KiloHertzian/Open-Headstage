@@ -57,6 +57,20 @@ All work is managed through the `TODO.md` file, following this disciplined loop:
 
 ---
 
+## 6. Project Documentation Index
+
+To effectively manage this project, I will maintain and refer to the following key documents. Each has a specific purpose:
+
+*   **`README.md`:** The public-facing introduction to the project. It contains a high-level overview, status, build instructions, and a roadmap. It should be kept up-to-date for human developers.
+*   **`ARCHITECTURE.md`:** The technical blueprint of the software. It describes the modules, their responsibilities, and how they interact. I will consult this before making any code changes and propose updates if the architecture evolves.
+*   **`BUGS.md`:** A log of known issues, resolved bugs, and, most importantly, the "Lessons Learned" from them. This serves as a historical knowledge base to prevent repeating mistakes.
+*   **`TODO.md`:** The active task list. It defines the development priorities and tracks what is complete, in-progress, and planned. I will update this at the beginning and end of each major task.
+*   **`CHANGELOG.md`:** A chronological log of user-facing changes for each version. I will propose updates to this file when a new feature or significant fix is complete.
+*   **`LICENSES.md`:** A record of all third-party dependencies and their licenses, to ensure compliance with open-source licensing requirements.
+*   **`GEMINI.md` (This file):** My own operational manual and framework. It defines my rules, protocols, and mission. I will update it to improve my own processes and efficiency.
+
+---
+
 ## 5. Foundational Scaffolding Prompt
 
 *(This prompt is executed automatically when initiating "Full Project Mode")*

@@ -95,7 +95,7 @@ This directory contains modules for various audio processing tasks.
 *   **Prerequisites:**
     *   Rust toolchain (see `rust-toolchain.toml` or CI setup for version).
     *   `libmysofa` development libraries (e.g., `libmysofa-dev` on Debian/Ubuntu).
-    *   For UI: System dependencies for `rfd` and `egui` might be needed (e.g., X11 development libraries).
+    *   For UI: A full GTK3 development environment. The easiest way to install this on Debian/Ubuntu is with the `libgtk-3-dev` package, which includes `glib`, `atk`, `pango`, `gdk`, and other necessary libraries.
 *   **Compilation:**
     *   `cargo build`: Compiles the plugin in debug mode.
     *   `cargo build --release`: Compiles the plugin in release mode (optimized).

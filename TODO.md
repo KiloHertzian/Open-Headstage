@@ -19,8 +19,8 @@ This file tracks the development tasks for the Open Headstage project.
 - [ ] **UI:** Implement basic UI elements (knobs, buttons) for all parameters using `egui`.
 - [ ] **UI:** Connect UI elements to the plugin's parameters.
 - [x] **UI:** Implement a file dialog to allow users to select a SOFA file from within the plugin.
-- [ ] **Verification:** Test the file dialog and SOFA loading functionality to confirm the recent refactoring works as expected at runtime.
-- [ ] **Verification:** Test the file dialog and SOFA loading functionality to confirm the recent refactoring works as expected at runtime.
+- [ ] **Verification:** Debug and fix plugin loading failure in hosts like Carla.
+- [ ] **Logging:** Enhance plugin logging to capture more details during initialization in a host environment.
 - [ ] **UI:** Design and implement a visual representation of the speaker setup (azimuth/elevation).
 - [ ] **UX:** Ensure parameter changes from the UI are smooth and don't cause audio artifacts.
 
