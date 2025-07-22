@@ -1,8 +1,9 @@
 // src/dsp/parametric_eq.rs
 
+use nih_plug::prelude::Enum;
 use std::f32::consts::PI;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
 #[allow(dead_code)]
 pub enum FilterType {
     Peak,

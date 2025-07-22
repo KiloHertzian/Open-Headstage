@@ -19,7 +19,7 @@ pub enum ConvolutionPath {
 }
 
 /// Holds the data for a single convolution path, adapted for partitioned convolution.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ConvolutionPathData {
     ir_fft_partitions: Vec<Vec<Complex<f32>>>,
     input_fft_history: Vec<Vec<Complex<f32>>>,
@@ -51,6 +51,7 @@ impl ConvolutionPathData {
 }
 
 /// Manages four convolution paths for binaural processing using partitioned convolution.
+#[derive(Clone)]
 pub struct ConvolutionEngine {
     paths: [ConvolutionPathData; 4],
 
