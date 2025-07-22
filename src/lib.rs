@@ -1,9 +1,6 @@
 use nih_plug::prelude::*;
-
-use nih_plug_egui::{
-    create_egui_editor, egui, resizable_window::ResizableWindow, widgets, EguiState,
-};
-use std::sync::{Arc, Mutex};
+use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use std::sync::Arc;
 
 // Make sure our modules are declared
 mod dsp;
@@ -12,6 +9,7 @@ mod sofa;
 use crate::dsp::convolution::ConvolutionEngine;
 use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
+use parking_lot::RwLock;
 use std::path::PathBuf;
 
 const NUM_EQ_BANDS: usize = 10;
@@ -20,7 +18,52 @@ pub enum Task {
     LoadSofa(PathBuf),
 }
 
-use parking_lot::RwLock;
+#[derive(Params)]
+struct EqBandParams {
+    #[id = "en"]
+    pub enabled: BoolParam,
+
+    #[id = "type"]
+    pub filter_type: EnumParam<FilterType>,
+
+    #[id = "fc"]
+    pub frequency: FloatParam,
+
+    #[id = "q"]
+    pub q: FloatParam,
+
+    #[id = "gain"]
+    pub gain: FloatParam,
+}
+
+impl Default for EqBandParams {
+    fn default() -> Self {
+        Self {
+            enabled: BoolParam::new("Enabled", false),
+            filter_type: EnumParam::new("Type", FilterType::Peak),
+            frequency: FloatParam::new(
+                "Frequency",
+                1000.0,
+                FloatRange::Skewed {
+                    min: 20.0,
+                    max: 20000.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit(" Hz"),
+            q: FloatParam::new("Q", 1.0, FloatRange::Linear { min: 0.1, max: 10.0 }),
+            gain: FloatParam::new(
+                "Gain",
+                0.0,
+                FloatRange::Linear {
+                    min: -24.0,
+                    max: 24.0,
+                },
+            )
+            .with_unit(" dB"),
+        }
+    }
+}
 
 #[derive(Params)]
 struct OpenHeadstageParams {
@@ -46,24 +89,15 @@ struct OpenHeadstageParams {
     #[id = "eq_enable"]
     pub eq_enable: BoolParam,
 
-    // EQ Bands (example for one band, repeat for NUM_EQ_BANDS)
-    #[id = "eq_b1_en"]
-    pub eq_band1_enable: BoolParam,
-    #[id = "eq_b1_fc"]
-    pub eq_band1_fc: FloatParam,
-    #[id = "eq_b1_q"]
-    pub eq_band1_q: FloatParam,
-    #[id = "eq_b1_gain"]
-    pub eq_band1_gain: FloatParam,
+    #[nested(array, group = "EQ Bands")]
+    pub eq_bands: Vec<EqBandParams>,
 }
 
 impl Default for OpenHeadstageParams {
     fn default() -> Self {
         Self {
-            editor_state: EguiState::from_size(800, 600),
-
+            editor_state: EguiState::from_size(800, 700),
             sofa_file_path: Arc::new(RwLock::new(String::new())),
-
             output_gain: FloatParam::new(
                 "Output Gain",
                 util::db_to_gain(0.0),
@@ -117,34 +151,9 @@ impl Default for OpenHeadstageParams {
             .with_smoother(SmoothingStyle::Linear(50.0))
             .with_unit("°"),
             eq_enable: BoolParam::new("Enable EQ", false),
-            eq_band1_enable: BoolParam::new("EQ B1 Enable", false),
-            eq_band1_fc: FloatParam::new(
-                "EQ B1 Fc",
-                1000.0,
-                FloatRange::Skewed {
-                    min: 20.0,
-                    max: 20000.0,
-                    factor: FloatRange::skew_factor(-2.0),
-                },
-            )
-            .with_unit(" Hz"),
-            eq_band1_q: FloatParam::new(
-                "EQ B1 Q",
-                1.0,
-                FloatRange::Linear {
-                    min: 0.1,
-                    max: 10.0,
-                },
-            ),
-            eq_band1_gain: FloatParam::new(
-                "EQ B1 Gain",
-                0.0,
-                FloatRange::Linear {
-                    min: -24.0,
-                    max: 24.0,
-                },
-            )
-            .with_unit(" dB"),
+            eq_bands: (0..NUM_EQ_BANDS)
+                .map(|_i| EqBandParams::default())
+                .collect(),
         }
     }
 }
@@ -152,7 +161,7 @@ impl Default for OpenHeadstageParams {
 struct OpenHeadstagePlugin {
     params: Arc<OpenHeadstageParams>,
     convolution_engine: ConvolutionEngine,
-    sofa_loader: Arc<Mutex<Option<MySofa>>>,
+    sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
     parametric_eq: StereoParametricEQ,
     current_sample_rate: f32,
 }
@@ -162,7 +171,7 @@ impl Default for OpenHeadstagePlugin {
         Self {
             params: Arc::new(OpenHeadstageParams::default()),
             convolution_engine: ConvolutionEngine::new(),
-            sofa_loader: Arc::new(Mutex::new(None)),
+            sofa_loader: Arc::new(parking_lot::Mutex::new(None)),
             parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0),
             current_sample_rate: 44100.0,
         }
@@ -194,66 +203,43 @@ impl Plugin for OpenHeadstagePlugin {
 
     fn editor(&mut self, async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
-        let egui_state = self.params.editor_state.clone();
         create_egui_editor(
-            egui_state.clone(),
+            self.params.editor_state.clone(),
             (),
             |_, _| {},
             move |egui_ctx, setter, _state| {
-                ResizableWindow::new(Self::NAME).show(egui_ctx, &egui_state, |ui| {
-                    // Use a grid for layout
+                egui::CentralPanel::default().show(egui_ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading(Self::NAME);
+                    });
+
                     egui::Grid::new("params_grid")
                         .num_columns(2)
                         .spacing([10.0, 4.0])
                         .show(ui, |ui| {
-                            // --- Output Gain ---
                             ui.label("Output Gain");
                             ui.add(widgets::ParamSlider::for_param(&params.output_gain, setter));
                             ui.end_row();
 
-                            // --- Speaker Angles ---
                             ui.strong("Speaker Configuration");
                             ui.end_row();
-
-                            // Left Speaker
                             ui.label("Left Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_azimuth_left,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter));
                             ui.end_row();
-
                             ui.label("Left Elevation");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_elevation_left,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter));
                             ui.end_row();
-
-                            // Right Speaker
                             ui.label("Right Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_azimuth_right,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter));
                             ui.end_row();
-
                             ui.label("Right Elevation");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_elevation_right,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
                             ui.end_row();
 
-                            // --- SOFA File ---
                             ui.strong("SOFA HRTF File");
                             ui.end_row();
-
                             if ui.button("Select SOFA File").clicked() {
-                                if let Some(file) = rfd::FileDialog::new()
-                                    .add_filter("SOFA Files", &["sofa"])
-                                    .pick_file()
-                                {
+                                if let Some(file) = rfd::FileDialog::new().add_filter("SOFA Files", &["sofa"]).pick_file() {
                                     let path_str = file.to_string_lossy().to_string();
                                     *params.sofa_file_path.write() = path_str;
                                     async_executor.execute_gui(Task::LoadSofa(file));
@@ -261,13 +247,36 @@ impl Plugin for OpenHeadstagePlugin {
                             }
                             ui.label(params.sofa_file_path.read().as_str());
                             ui.end_row();
-
-                            // --- Ear Shape Placeholder ---
-                            ui.strong("Ear Shape");
-                            ui.end_row();
-                            ui.label("(Placeholder for ear shape image)");
-                            ui.end_row();
                         });
+
+                    ui.separator();
+
+                    ui.strong("Parametric Equalizer");
+                    ui.add(widgets::ParamSlider::for_param(&params.eq_enable, setter));
+
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        egui::Grid::new("eq_grid")
+                            .num_columns(6)
+                            .spacing([10.0, 4.0])
+                            .show(ui, |ui| {
+                                ui.label("On");
+                                ui.label("Type");
+                                ui.label("Freq");
+                                ui.label("Q");
+                                ui.label("Gain");
+                                ui.end_row();
+
+                                for (i, band) in params.eq_bands.iter().enumerate() {
+                                    ui.label(format!("{}", i + 1));
+                                    ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
+                                    ui.add(widgets::ParamSlider::for_param(&band.filter_type, setter));
+                                    ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
+                                    ui.add(widgets::ParamSlider::for_param(&band.q, setter));
+                                    ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
+                                    ui.end_row();
+                                }
+                            });
+                    });
                 });
             },
         )
@@ -277,20 +286,17 @@ impl Plugin for OpenHeadstagePlugin {
         let sample_rate = self.current_sample_rate;
         let sofa_loader = self.sofa_loader.clone();
 
-        Box::new(move |task| {
-            match task {
-                Task::LoadSofa(path) => {
-                    nih_log!("Loading SOFA file from: {:?}", path);
-                    match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
-                        Ok(loader) => {
-                            nih_log!("Successfully loaded SOFA file: {:?}", path);
-                            *sofa_loader.lock().unwrap() = Some(loader);
-                            // TODO: Re-initialize the convolution engine with the new HRIRs
-                        }
-                        Err(e) => {
-                            nih_log!("Failed to load SOFA file '{:?}': {:?}", path, e);
-                            *sofa_loader.lock().unwrap() = None;
-                        }
+        Box::new(move |task| match task {
+            Task::LoadSofa(path) => {
+                nih_log!("Loading SOFA file from: {:?}", path);
+                match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
+                    Ok(loader) => {
+                        nih_log!("Successfully loaded SOFA file: {:?}", path);
+                        *sofa_loader.lock() = Some(loader);
+                    }
+                    Err(e) => {
+                        nih_log!("Failed to load SOFA file '{:?}': {:?}", path, e);
+                        *sofa_loader.lock() = None;
                     }
                 }
             }
@@ -304,48 +310,21 @@ impl Plugin for OpenHeadstagePlugin {
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         self.current_sample_rate = buffer_config.sample_rate;
-        nih_log!(
-            "Plugin initialized. Sample rate: {}",
-            self.current_sample_rate
-        );
-        nih_log!(
-            "SOFA file path on initialization: '{}'",
-            *self.params.sofa_file_path.read()
-        );
+        self.parametric_eq = StereoParametricEQ::new(NUM_EQ_BANDS, self.current_sample_rate);
+        self.convolution_engine = ConvolutionEngine::new();
 
         let sofa_path_str = self.params.sofa_file_path.read();
         if !sofa_path_str.is_empty() {
-            nih_log!("Attempting to load SOFA file from: {}", *sofa_path_str);
             match MySofa::open(&sofa_path_str, self.current_sample_rate) {
-                Ok(sofa_loader) => {
-                    nih_log!("Successfully loaded SOFA file: {}", sofa_path_str);
-                    *self.sofa_loader.lock().unwrap() = Some(sofa_loader);
-                }
-                Err(e) => {
-                    nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e);
-                    *self.sofa_loader.lock().unwrap() = None;
-                }
+                Ok(sofa_loader) => *self.sofa_loader.lock() = Some(sofa_loader),
+                Err(e) => nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e),
             }
-        } else {
-            nih_log!("No SOFA file path configured. Skipping SOFA loading.");
-            *self.sofa_loader.lock().unwrap() = None;
         }
-
-        self.convolution_engine = ConvolutionEngine::new();
-        nih_log!("Convolution engine (re)initialized.");
-
-        self.parametric_eq = StereoParametricEQ::new(NUM_EQ_BANDS, self.current_sample_rate);
-        nih_log!(
-            "Parametric EQ initialized with {} bands at {} Hz.",
-            NUM_EQ_BANDS,
-            self.current_sample_rate
-        );
-
         true
     }
 
     fn reset(&mut self) {
-        nih_log!("Plugin reset.");
+        self.parametric_eq.reset_all_bands_state();
     }
 
     fn process(
@@ -359,41 +338,34 @@ impl Plugin for OpenHeadstagePlugin {
         let _az_r = self.params.speaker_azimuth_right.smoothed.next();
         let _el_r = self.params.speaker_elevation_right.smoothed.next();
 
-        let [left_slice, right_slice] = buffer.as_slice() else {
-            panic!("Expected exactly two audio channels, but got a different number.");
+        let [left, right] = buffer.as_slice() else {
+            // This should not happen if the plugin is configured correctly
+            return ProcessStatus::Error("Mismatched channel count");
         };
 
-        let eq_enabled = self.params.eq_enable.value();
-        if eq_enabled {
-            let band_config = BandConfig {
-                filter_type: FilterType::Peak,
-                center_freq: self.params.eq_band1_fc.smoothed.next(),
-                q: self.params.eq_band1_q.smoothed.next(),
-                gain_db: self.params.eq_band1_gain.smoothed.next(),
-                enabled: self.params.eq_band1_enable.value(),
-            };
-            self.parametric_eq
-                .update_band_coeffs(0, self.current_sample_rate, &band_config);
-
-            for i in 0..left_slice.len() {
-                (left_slice[i], right_slice[i]) = self
-                    .parametric_eq
-                    .process_stereo_sample(left_slice[i], right_slice[i]);
+        if self.params.eq_enable.value() {
+            for (i, band_params) in self.params.eq_bands.iter().enumerate() {
+                let band_config = BandConfig {
+                    filter_type: band_params.filter_type.value(),
+                    center_freq: band_params.frequency.smoothed.next(),
+                    q: band_params.q.smoothed.next(),
+                    gain_db: band_params.gain.smoothed.next(),
+                    enabled: band_params.enabled.value(),
+                };
+                self.parametric_eq.update_band_coeffs(i, self.current_sample_rate, &band_config);
             }
+            self.parametric_eq.process_block(left, right);
         }
 
-        let input_l = left_slice.to_vec();
-        let input_r = right_slice.to_vec();
-
-        self.convolution_engine
-            .process_block(&input_l, &input_r, left_slice, right_slice);
+        let input_l = left.to_vec();
+        let input_r = right.to_vec();
+        self.convolution_engine.process_block(&input_l, &input_r, left, right);
 
         let master_gain = self.params.output_gain.smoothed.next();
-        for sample in left_slice.iter_mut() {
-            *sample *= master_gain;
-        }
-        for sample in right_slice.iter_mut() {
-            *sample *= master_gain;
+        for mut channel_samples in buffer.iter_samples() {
+            for sample in channel_samples.iter_mut() {
+                *sample *= master_gain;
+            }
         }
 
         ProcessStatus::Normal
@@ -410,8 +382,7 @@ impl ClapPlugin for OpenHeadstagePlugin {
 
 impl Vst3Plugin for OpenHeadstagePlugin {
     const VST3_CLASS_ID: [u8; 16] = *b"OpenHeadstageXXX";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
-        &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
 }
 
 nih_export_clap!(OpenHeadstagePlugin);

@@ -46,14 +46,28 @@ These rules are absolute and form the immutable core of your operating principle
 
 All work is managed through the `TODO.md` file, following this disciplined loop:
 
-1.  **SYNC:** Review `TODO.md` to identify the highest-priority task. **Before starting, read `ARCHITECTURE.md` and `BUGS.md` to ensure a complete understanding of the project's current state, design, and known issues.** Announce the task you are starting.
+1.  **SYNC:** Review `TODO.md` to identify the highest-priority task. **Before starting, read `README.md`, `GEMINI.md`, `ARCHITECTURE.md`, `BUGS.md`, `TODO.md`, and `CHANGELOG.md` to ensure a complete and holistic understanding of the project's current state, design, known issues, and recent changes.** Announce the task you are starting.
 2.  **PLAN:** Assess the task's scope. If it is too large or ambiguous, your first action is to propose breaking it down into smaller, concrete sub-tasks. Wait for approval before modifying `TODO.md`.
 3.  **EXECUTE:** Complete the task.
     * **Dependency Management:** If a new third-party dependency is required, you must request approval and provide a brief **Dependency Health Analysis** (maintenance status, known vulnerabilities, license).
     * **Principle Adherence:** In your final handoff, you must include a "Principle Adherence" note, briefly justifying how your implementation aligns with a key architectural principle (e.g., Security, Modularity, DRY).
-4.  **DOCUMENT:** If a change impacts the system design, propose the necessary updates to the `ARCHITECTURE.md` (following **Rule #1**). For significant decisions, propose creating an Architecture Decision Record (ADR). **If a bug is fixed, propose updating `BUGS.md` to reflect the resolution.**
+4.  **DOCUMENT & UPDATE:** Upon task completion, propose necessary updates to any affected project documents, including `ARCHITECTURE.md` (following **Rule #1**), `BUGS.md`, `CHANGELOG.md`, and `README.md`. When modifying documentation, preserve previous information by annotating it as deprecated rather than deleting it, ensuring a clear historical record.
 5.  **COMMIT:** Update the task's status to "done" in `TODO.md`.
 6.  **HANDOFF:** Follow the protocol in **Rule #5**, summarizing your work and pausing for review.
+
+---
+
+## 6. Project Documentation Index
+
+To effectively manage this project, I will maintain and refer to the following key documents. Each has a specific purpose:
+
+*   **`README.md`:** The public-facing introduction to the project. It contains a high-level overview, status, build instructions, and a roadmap. It should be kept up-to-date for human developers.
+*   **`ARCHITECTURE.md`:** The technical blueprint of the software. It describes the modules, their responsibilities, and how they interact. I will consult this before making any code changes and propose updates if the architecture evolves.
+*   **`BUGS.md`:** A log of known issues, resolved bugs, and, most importantly, the "Lessons Learned" from them. This serves as a historical knowledge base to prevent repeating mistakes.
+*   **`TODO.md`:** The active task list. It defines the development priorities and tracks what is complete, in-progress, and planned. I will update this at the beginning and end of each major task.
+*   **`CHANGELOG.md`:** A chronological log of user-facing changes for each version. I will propose updates to this file when a new feature or significant fix is complete.
+*   **`LICENSES.md`:** A record of all third-party dependencies and their licenses, to ensure compliance with open-source licensing requirements.
+*   **`GEMINI.md` (This file):** My own operational manual and framework. It defines my rules, protocols, and mission. I will update it to improve my own processes and efficiency.
 
 ---
 
