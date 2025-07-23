@@ -29,7 +29,7 @@ This file tracks the development tasks for the Open Headstage project.
 
 - [x] **DSP:** Implement HRIR resampling for different sample rates.
 - [x] **Headphone EQ:** Implement parsing of AutoEQ profile files.
-- [ ] **Presets:** Implement a system for saving and loading plugin presets.
+- [x] **Presets:** Implement a system for saving and loading plugin presets.
 - [ ] **Performance:** Profile and optimize the DSP code.
 
 ## Future Vision (Post-MVP)
