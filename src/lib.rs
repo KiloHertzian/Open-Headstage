@@ -7,10 +7,12 @@ use std::sync::Arc;
 // Make sure our modules are declared
 mod dsp;
 mod sofa;
+mod ui;
 
 use crate::dsp::convolution::ConvolutionEngine;
 use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
+use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use egui_file_dialog::FileDialog;
 use parking_lot::RwLock;
 
@@ -254,6 +256,15 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.end_row();
                             ui.label("Right Elevation");
                             ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
+                            ui.end_row();
+
+                            let visualizer = SpeakerVisualizer {
+                                left_azimuth: params.speaker_azimuth_left.value(),
+                                left_elevation: params.speaker_elevation_left.value(),
+                                right_azimuth: params.speaker_azimuth_right.value(),
+                                right_elevation: params.speaker_elevation_right.value(),
+                            };
+                            ui.add(visualizer);
                             ui.end_row();
 
                             ui.strong("SOFA HRTF File");
