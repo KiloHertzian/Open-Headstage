@@ -26,3 +26,7 @@ bindgen = "0.70"
 
 [lib]
 crate-type = ["cdylib"]
+
+[dev-dependencies]
+criterion = "0.5"
+rand = "0.8"

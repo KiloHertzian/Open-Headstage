@@ -1,7 +1,6 @@
 use nih_plug_egui::egui::{
-    emath::RectTransform,
-    epaint::CircleShape,
-    Color32, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2, Widget,
+    emath::RectTransform, epaint::CircleShape, Color32, Pos2, Rect, Response, Sense, Shape, Stroke,
+    Ui, Vec2, Widget,
 };
 
 pub struct SpeakerVisualizer {
@@ -13,8 +12,7 @@ pub struct SpeakerVisualizer {
 
 impl Widget for SpeakerVisualizer {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (response, painter) =
-            ui.allocate_painter(Vec2::new(200.0, 200.0), Sense::hover());
+        let (response, painter) = ui.allocate_painter(Vec2::new(200.0, 200.0), Sense::hover());
 
         let to_screen = RectTransform::from_to(
             Rect::from_min_max(Pos2::new(-1.2, -1.2), Pos2::new(1.2, 1.2)),
@@ -47,8 +45,16 @@ impl Widget for SpeakerVisualizer {
             }));
         };
 
-        draw_speaker(self.left_azimuth, self.left_elevation, Color32::from_rgb(255, 0, 0));
-        draw_speaker(self.right_azimuth, self.right_elevation, Color32::from_rgb(0, 0, 255));
+        draw_speaker(
+            self.left_azimuth,
+            self.left_elevation,
+            Color32::from_rgb(255, 0, 0),
+        );
+        draw_speaker(
+            self.right_azimuth,
+            self.right_elevation,
+            Color32::from_rgb(0, 0, 255),
+        );
 
         response
     }

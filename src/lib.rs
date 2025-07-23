@@ -266,16 +266,28 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.strong("Speaker Configuration");
                             ui.end_row();
                             ui.label("Left Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_azimuth_left,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Left Elevation");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_elevation_left,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Right Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_azimuth_right,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Right Elevation");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_elevation_right,
+                                setter,
+                            ));
                             ui.end_row();
 
                             let visualizer = SpeakerVisualizer {
@@ -323,8 +335,14 @@ impl Plugin for OpenHeadstagePlugin {
                                 for (i, band) in params.eq_bands.iter().enumerate() {
                                     ui.label(format!("{}", i + 1));
                                     ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
-                                    ui.add(widgets::ParamSlider::for_param(&band.filter_type, setter));
-                                    ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
+                                    ui.add(widgets::ParamSlider::for_param(
+                                        &band.filter_type,
+                                        setter,
+                                    ));
+                                    ui.add(widgets::ParamSlider::for_param(
+                                        &band.frequency,
+                                        setter,
+                                    ));
                                     ui.add(widgets::ParamSlider::for_param(&band.q, setter));
                                     ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
                                     ui.end_row();
@@ -416,7 +434,10 @@ impl Plugin for OpenHeadstagePlugin {
                             path
                         );
                         if let Err(e) = sender.send(parsed_bands) {
-                            nih_log!("BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}", e);
+                            nih_log!(
+                                "BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}",
+                                e
+                            );
                         }
                     }
                     Err(e) => {
@@ -450,7 +471,7 @@ impl Plugin for OpenHeadstagePlugin {
                 Ok(sofa_loader) => {
                     nih_log!("Successfully loaded SOFA file.");
                     *self.sofa_loader.lock() = Some(sofa_loader)
-                },
+                }
                 Err(e) => nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e),
             }
         }
@@ -469,7 +490,10 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        if !self.has_logged_processing_start.swap(true, Ordering::Relaxed) {
+        if !self
+            .has_logged_processing_start
+            .swap(true, Ordering::Relaxed)
+        {
             nih_log!("Audio processing started.");
         }
 
@@ -491,14 +515,16 @@ impl Plugin for OpenHeadstagePlugin {
                     gain_db: band_params.gain.smoothed.next(),
                     enabled: band_params.enabled.value(),
                 };
-                self.parametric_eq.update_band_coeffs(i, self.current_sample_rate, &band_config);
+                self.parametric_eq
+                    .update_band_coeffs(i, self.current_sample_rate, &band_config);
             }
             self.parametric_eq.process_block(left, right);
         }
 
         let input_l = left.to_vec();
         let input_r = right.to_vec();
-        self.convolution_engine.process_block(&input_l, &input_r, left, right);
+        self.convolution_engine
+            .process_block(&input_l, &input_r, left, right);
 
         let master_gain = self.params.output_gain.smoothed.next();
         for mut channel_samples in buffer.iter_samples() {
