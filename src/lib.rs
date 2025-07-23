@@ -1,37 +1,41 @@
+use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 // Make sure our modules are declared
+mod autoeq_parser;
 mod dsp;
 mod sofa;
+mod ui;
 
+use crate::autoeq_parser::BandSetting;
 use crate::dsp::convolution::ConvolutionEngine;
 use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
+use crate::ui::speaker_visualizer::SpeakerVisualizer;
+use egui_file_dialog::FileDialog;
 use parking_lot::RwLock;
-use std::path::PathBuf;
 
 const NUM_EQ_BANDS: usize = 10;
 
 pub enum Task {
     LoadSofa(PathBuf),
+    LoadAutoEq(PathBuf, Sender<Vec<BandSetting>>),
 }
 
 #[derive(Params)]
 struct EqBandParams {
     #[id = "en"]
     pub enabled: BoolParam,
-
     #[id = "type"]
     pub filter_type: EnumParam<FilterType>,
-
     #[id = "fc"]
     pub frequency: FloatParam,
-
     #[id = "q"]
     pub q: FloatParam,
-
     #[id = "gain"]
     pub gain: FloatParam,
 }
@@ -50,7 +54,8 @@ impl Default for EqBandParams {
                     factor: FloatRange::skew_factor(-2.0),
                 },
             )
-            .with_unit(" Hz"),
+            .with_unit(" Hz")
+            .with_smoother(SmoothingStyle::Logarithmic(50.0)),
             q: FloatParam::new(
                 "Q",
                 1.0,
@@ -58,7 +63,8 @@ impl Default for EqBandParams {
                     min: 0.1,
                     max: 10.0,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(50.0)),
             gain: FloatParam::new(
                 "Gain",
                 0.0,
@@ -67,7 +73,8 @@ impl Default for EqBandParams {
                     max: 24.0,
                 },
             )
-            .with_unit(" dB"),
+            .with_unit(" dB")
+            .with_smoother(SmoothingStyle::Linear(50.0)),
         }
     }
 }
@@ -165,12 +172,38 @@ impl Default for OpenHeadstageParams {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum FileDialogRequest {
+    Sofa,
+    AutoEq,
+}
+
+struct EditorState {
+    file_dialog: FileDialog,
+    file_dialog_request: Option<FileDialogRequest>,
+    eq_band_receiver: Receiver<Vec<BandSetting>>,
+    eq_band_sender: Sender<Vec<BandSetting>>,
+}
+
+impl Default for EditorState {
+    fn default() -> Self {
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        Self {
+            file_dialog: FileDialog::new(),
+            file_dialog_request: None,
+            eq_band_receiver: receiver,
+            eq_band_sender: sender,
+        }
+    }
+}
+
 struct OpenHeadstagePlugin {
     params: Arc<OpenHeadstageParams>,
     convolution_engine: ConvolutionEngine,
     sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
     parametric_eq: StereoParametricEQ,
     current_sample_rate: f32,
+    has_logged_processing_start: AtomicBool,
 }
 
 impl Default for OpenHeadstagePlugin {
@@ -181,6 +214,7 @@ impl Default for OpenHeadstagePlugin {
             sofa_loader: Arc::new(parking_lot::Mutex::new(None)),
             parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0),
             current_sample_rate: 44100.0,
+            has_logged_processing_start: AtomicBool::new(false),
         }
     }
 }
@@ -210,11 +244,12 @@ impl Plugin for OpenHeadstagePlugin {
 
     fn editor(&mut self, async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
+
         create_egui_editor(
             self.params.editor_state.clone(),
-            (),
+            EditorState::default(),
             |_, _| {},
-            move |egui_ctx, setter, _state| {
+            move |egui_ctx, setter, state| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading(Self::NAME);
@@ -231,41 +266,33 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.strong("Speaker Configuration");
                             ui.end_row();
                             ui.label("Left Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_azimuth_left,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter));
                             ui.end_row();
                             ui.label("Left Elevation");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_elevation_left,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter));
                             ui.end_row();
                             ui.label("Right Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_azimuth_right,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter));
                             ui.end_row();
                             ui.label("Right Elevation");
-                            ui.add(widgets::ParamSlider::for_param(
-                                &params.speaker_elevation_right,
-                                setter,
-                            ));
+                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
+                            ui.end_row();
+
+                            let visualizer = SpeakerVisualizer {
+                                left_azimuth: params.speaker_azimuth_left.value(),
+                                left_elevation: params.speaker_elevation_left.value(),
+                                right_azimuth: params.speaker_azimuth_right.value(),
+                                right_elevation: params.speaker_elevation_right.value(),
+                            };
+                            ui.add(visualizer);
                             ui.end_row();
 
                             ui.strong("SOFA HRTF File");
                             ui.end_row();
+
                             if ui.button("Select SOFA File").clicked() {
-                                if let Some(file) = rfd::FileDialog::new()
-                                    .add_filter("SOFA Files", &["sofa"])
-                                    .pick_file()
-                                {
-                                    let path_str = file.to_string_lossy().to_string();
-                                    *params.sofa_file_path.write() = path_str;
-                                    async_executor.execute_gui(Task::LoadSofa(file));
-                                }
+                                state.file_dialog_request = Some(FileDialogRequest::Sofa);
+                                state.file_dialog.pick_file();
                             }
                             ui.label(params.sofa_file_path.read().as_str());
                             ui.end_row();
@@ -275,6 +302,11 @@ impl Plugin for OpenHeadstagePlugin {
 
                     ui.strong("Parametric Equalizer");
                     ui.add(widgets::ParamSlider::for_param(&params.eq_enable, setter));
+
+                    if ui.button("Load AutoEQ Profile").clicked() {
+                        state.file_dialog_request = Some(FileDialogRequest::AutoEq);
+                        state.file_dialog.pick_file();
+                    }
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         egui::Grid::new("eq_grid")
@@ -291,14 +323,8 @@ impl Plugin for OpenHeadstagePlugin {
                                 for (i, band) in params.eq_bands.iter().enumerate() {
                                     ui.label(format!("{}", i + 1));
                                     ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
-                                    ui.add(widgets::ParamSlider::for_param(
-                                        &band.filter_type,
-                                        setter,
-                                    ));
-                                    ui.add(widgets::ParamSlider::for_param(
-                                        &band.frequency,
-                                        setter,
-                                    ));
+                                    ui.add(widgets::ParamSlider::for_param(&band.filter_type, setter));
+                                    ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
                                     ui.add(widgets::ParamSlider::for_param(&band.q, setter));
                                     ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
                                     ui.end_row();
@@ -306,6 +332,58 @@ impl Plugin for OpenHeadstagePlugin {
                             });
                     });
                 });
+
+                state.file_dialog.update(egui_ctx);
+
+                if let Some(path) = state.file_dialog.take_picked() {
+                    match state.file_dialog_request {
+                        Some(FileDialogRequest::Sofa) => {
+                            let path_str = path.to_string_lossy().to_string();
+                            *params.sofa_file_path.write() = path_str;
+                            async_executor.execute_gui(Task::LoadSofa(path));
+                        }
+                        Some(FileDialogRequest::AutoEq) => {
+                            let sender = state.eq_band_sender.clone();
+                            async_executor.execute_gui(Task::LoadAutoEq(path, sender));
+                        }
+                        None => nih_log!("File dialog picked but no request was made."),
+                    }
+                    state.file_dialog_request = None;
+                }
+
+                if let Ok(bands) = state.eq_band_receiver.try_recv() {
+                    setter.begin_set_parameter(&params.eq_enable);
+                    setter.set_parameter(&params.eq_enable, true);
+                    setter.end_set_parameter(&params.eq_enable);
+
+                    for (i, band_param) in params.eq_bands.iter().enumerate() {
+                        if let Some(band_setting) = bands.get(i) {
+                            setter.begin_set_parameter(&band_param.enabled);
+                            setter.set_parameter(&band_param.enabled, true);
+                            setter.end_set_parameter(&band_param.enabled);
+
+                            setter.begin_set_parameter(&band_param.filter_type);
+                            setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
+                            setter.end_set_parameter(&band_param.filter_type);
+
+                            setter.begin_set_parameter(&band_param.frequency);
+                            setter.set_parameter(&band_param.frequency, band_setting.frequency);
+                            setter.end_set_parameter(&band_param.frequency);
+
+                            setter.begin_set_parameter(&band_param.q);
+                            setter.set_parameter(&band_param.q, band_setting.q);
+                            setter.end_set_parameter(&band_param.q);
+
+                            setter.begin_set_parameter(&band_param.gain);
+                            setter.set_parameter(&band_param.gain, band_setting.gain);
+                            setter.end_set_parameter(&band_param.gain);
+                        } else {
+                            setter.begin_set_parameter(&band_param.enabled);
+                            setter.set_parameter(&band_param.enabled, false);
+                            setter.end_set_parameter(&band_param.enabled);
+                        }
+                    }
+                }
             },
         )
     }
@@ -316,15 +394,37 @@ impl Plugin for OpenHeadstagePlugin {
 
         Box::new(move |task| match task {
             Task::LoadSofa(path) => {
-                nih_log!("Loading SOFA file from: {:?}", path);
+                nih_log!("BACKGROUND: Loading SOFA file from: {:?}", path);
                 match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
                     Ok(loader) => {
-                        nih_log!("Successfully loaded SOFA file: {:?}", path);
+                        nih_log!("BACKGROUND: Successfully loaded SOFA file: {:?}", path);
                         *sofa_loader.lock() = Some(loader);
                     }
                     Err(e) => {
-                        nih_log!("Failed to load SOFA file '{:?}': {:?}", path, e);
+                        nih_log!("BACKGROUND: Failed to load SOFA file '{:?}': {:?}", path, e);
                         *sofa_loader.lock() = None;
+                    }
+                }
+            }
+            Task::LoadAutoEq(path, sender) => {
+                nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", path);
+                match autoeq_parser::parse_autoeq_csv(&path) {
+                    Ok(parsed_bands) => {
+                        nih_log!(
+                            "BACKGROUND: Successfully parsed {} EQ bands from {:?}.",
+                            parsed_bands.len(),
+                            path
+                        );
+                        if let Err(e) = sender.send(parsed_bands) {
+                            nih_log!("BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}", e);
+                        }
+                    }
+                    Err(e) => {
+                        nih_log!(
+                            "BACKGROUND: Failed to parse AutoEQ file '{:?}': {:?}",
+                            path,
+                            e
+                        );
                     }
                 }
             }
@@ -337,17 +437,25 @@ impl Plugin for OpenHeadstagePlugin {
         buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
+        nih_log!("Initializing Open Headstage v{}", Self::VERSION);
+
         self.current_sample_rate = buffer_config.sample_rate;
         self.parametric_eq = StereoParametricEQ::new(NUM_EQ_BANDS, self.current_sample_rate);
         self.convolution_engine = ConvolutionEngine::new();
 
         let sofa_path_str = self.params.sofa_file_path.read();
         if !sofa_path_str.is_empty() {
+            nih_log!("Attempting to load initial SOFA file: {}", sofa_path_str);
             match MySofa::open(&sofa_path_str, self.current_sample_rate) {
-                Ok(sofa_loader) => *self.sofa_loader.lock() = Some(sofa_loader),
+                Ok(sofa_loader) => {
+                    nih_log!("Successfully loaded SOFA file.");
+                    *self.sofa_loader.lock() = Some(sofa_loader)
+                },
                 Err(e) => nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e),
             }
         }
+
+        nih_log!("Initialization complete.");
         true
     }
 
@@ -361,13 +469,16 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
+        if !self.has_logged_processing_start.swap(true, Ordering::Relaxed) {
+            nih_log!("Audio processing started.");
+        }
+
         let _az_l = self.params.speaker_azimuth_left.smoothed.next();
         let _el_l = self.params.speaker_elevation_left.smoothed.next();
         let _az_r = self.params.speaker_azimuth_right.smoothed.next();
         let _el_r = self.params.speaker_elevation_right.smoothed.next();
 
         let [left, right] = buffer.as_slice() else {
-            // This should not happen if the plugin is configured correctly
             return ProcessStatus::Error("Mismatched channel count");
         };
 
@@ -380,16 +491,14 @@ impl Plugin for OpenHeadstagePlugin {
                     gain_db: band_params.gain.smoothed.next(),
                     enabled: band_params.enabled.value(),
                 };
-                self.parametric_eq
-                    .update_band_coeffs(i, self.current_sample_rate, &band_config);
+                self.parametric_eq.update_band_coeffs(i, self.current_sample_rate, &band_config);
             }
             self.parametric_eq.process_block(left, right);
         }
 
         let input_l = left.to_vec();
         let input_r = right.to_vec();
-        self.convolution_engine
-            .process_block(&input_l, &input_r, left, right);
+        self.convolution_engine.process_block(&input_l, &input_r, left, right);
 
         let master_gain = self.params.output_gain.smoothed.next();
         for mut channel_samples in buffer.iter_samples() {
