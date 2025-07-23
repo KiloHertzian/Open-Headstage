@@ -331,17 +331,25 @@ impl Plugin for OpenHeadstagePlugin {
         buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
+        nih_log!("Initializing Open Headstage v{}", Self::VERSION);
+
         self.current_sample_rate = buffer_config.sample_rate;
         self.parametric_eq = StereoParametricEQ::new(NUM_EQ_BANDS, self.current_sample_rate);
         self.convolution_engine = ConvolutionEngine::new();
 
         let sofa_path_str = self.params.sofa_file_path.read();
         if !sofa_path_str.is_empty() {
+            nih_log!("Attempting to load initial SOFA file: {}", sofa_path_str);
             match MySofa::open(&sofa_path_str, self.current_sample_rate) {
-                Ok(sofa_loader) => *self.sofa_loader.lock() = Some(sofa_loader),
+                Ok(sofa_loader) => {
+                    nih_log!("Successfully loaded SOFA file.");
+                    *self.sofa_loader.lock() = Some(sofa_loader)
+                },
                 Err(e) => nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e),
             }
         }
+
+        nih_log!("Initialization complete.");
         true
     }
 
