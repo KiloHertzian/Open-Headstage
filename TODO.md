@@ -28,7 +28,7 @@ This file tracks the development tasks for the Open Headstage project.
 ## Phase 3: Advanced Features & Polish
 
 - [x] **DSP:** Implement HRIR resampling for different sample rates.
-- [ ] **Headphone EQ:** Implement parsing of AutoEQ profile files.
+- [x] **Headphone EQ:** Implement parsing of AutoEQ profile files.
 - [ ] **Presets:** Implement a system for saving and loading plugin presets.
 - [ ] **Performance:** Profile and optimize the DSP code.
 

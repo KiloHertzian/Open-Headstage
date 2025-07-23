@@ -1,3 +1,4 @@
+use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
 use std::path::PathBuf;
@@ -5,10 +6,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 // Make sure our modules are declared
+mod autoeq_parser;
 mod dsp;
 mod sofa;
 mod ui;
 
+use crate::autoeq_parser::BandSetting;
 use crate::dsp::convolution::ConvolutionEngine;
 use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
@@ -20,6 +23,7 @@ const NUM_EQ_BANDS: usize = 10;
 
 pub enum Task {
     LoadSofa(PathBuf),
+    LoadAutoEq(PathBuf, Sender<Vec<BandSetting>>),
 }
 
 #[derive(Params)]
@@ -168,14 +172,27 @@ impl Default for OpenHeadstageParams {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum FileDialogRequest {
+    Sofa,
+    AutoEq,
+}
+
 struct EditorState {
     file_dialog: FileDialog,
+    file_dialog_request: Option<FileDialogRequest>,
+    eq_band_receiver: Receiver<Vec<BandSetting>>,
+    eq_band_sender: Sender<Vec<BandSetting>>,
 }
 
 impl Default for EditorState {
     fn default() -> Self {
+        let (sender, receiver) = crossbeam_channel::unbounded();
         Self {
             file_dialog: FileDialog::new(),
+            file_dialog_request: None,
+            eq_band_receiver: receiver,
+            eq_band_sender: sender,
         }
     }
 }
@@ -274,6 +291,7 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.end_row();
 
                             if ui.button("Select SOFA File").clicked() {
+                                state.file_dialog_request = Some(FileDialogRequest::Sofa);
                                 state.file_dialog.pick_file();
                             }
                             ui.label(params.sofa_file_path.read().as_str());
@@ -284,6 +302,11 @@ impl Plugin for OpenHeadstagePlugin {
 
                     ui.strong("Parametric Equalizer");
                     ui.add(widgets::ParamSlider::for_param(&params.eq_enable, setter));
+
+                    if ui.button("Load AutoEQ Profile").clicked() {
+                        state.file_dialog_request = Some(FileDialogRequest::AutoEq);
+                        state.file_dialog.pick_file();
+                    }
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         egui::Grid::new("eq_grid")
@@ -313,9 +336,53 @@ impl Plugin for OpenHeadstagePlugin {
                 state.file_dialog.update(egui_ctx);
 
                 if let Some(path) = state.file_dialog.take_picked() {
-                    let path_str = path.to_string_lossy().to_string();
-                    *params.sofa_file_path.write() = path_str;
-                    async_executor.execute_gui(Task::LoadSofa(path));
+                    match state.file_dialog_request {
+                        Some(FileDialogRequest::Sofa) => {
+                            let path_str = path.to_string_lossy().to_string();
+                            *params.sofa_file_path.write() = path_str;
+                            async_executor.execute_gui(Task::LoadSofa(path));
+                        }
+                        Some(FileDialogRequest::AutoEq) => {
+                            let sender = state.eq_band_sender.clone();
+                            async_executor.execute_gui(Task::LoadAutoEq(path, sender));
+                        }
+                        None => nih_log!("File dialog picked but no request was made."),
+                    }
+                    state.file_dialog_request = None;
+                }
+
+                if let Ok(bands) = state.eq_band_receiver.try_recv() {
+                    setter.begin_set_parameter(&params.eq_enable);
+                    setter.set_parameter(&params.eq_enable, true);
+                    setter.end_set_parameter(&params.eq_enable);
+
+                    for (i, band_param) in params.eq_bands.iter().enumerate() {
+                        if let Some(band_setting) = bands.get(i) {
+                            setter.begin_set_parameter(&band_param.enabled);
+                            setter.set_parameter(&band_param.enabled, true);
+                            setter.end_set_parameter(&band_param.enabled);
+
+                            setter.begin_set_parameter(&band_param.filter_type);
+                            setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
+                            setter.end_set_parameter(&band_param.filter_type);
+
+                            setter.begin_set_parameter(&band_param.frequency);
+                            setter.set_parameter(&band_param.frequency, band_setting.frequency);
+                            setter.end_set_parameter(&band_param.frequency);
+
+                            setter.begin_set_parameter(&band_param.q);
+                            setter.set_parameter(&band_param.q, band_setting.q);
+                            setter.end_set_parameter(&band_param.q);
+
+                            setter.begin_set_parameter(&band_param.gain);
+                            setter.set_parameter(&band_param.gain, band_setting.gain);
+                            setter.end_set_parameter(&band_param.gain);
+                        } else {
+                            setter.begin_set_parameter(&band_param.enabled);
+                            setter.set_parameter(&band_param.enabled, false);
+                            setter.end_set_parameter(&band_param.enabled);
+                        }
+                    }
                 }
             },
         )
@@ -336,6 +403,28 @@ impl Plugin for OpenHeadstagePlugin {
                     Err(e) => {
                         nih_log!("BACKGROUND: Failed to load SOFA file '{:?}': {:?}", path, e);
                         *sofa_loader.lock() = None;
+                    }
+                }
+            }
+            Task::LoadAutoEq(path, sender) => {
+                nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", path);
+                match autoeq_parser::parse_autoeq_csv(&path) {
+                    Ok(parsed_bands) => {
+                        nih_log!(
+                            "BACKGROUND: Successfully parsed {} EQ bands from {:?}.",
+                            parsed_bands.len(),
+                            path
+                        );
+                        if let Err(e) = sender.send(parsed_bands) {
+                            nih_log!("BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}", e);
+                        }
+                    }
+                    Err(e) => {
+                        nih_log!(
+                            "BACKGROUND: Failed to parse AutoEQ file '{:?}': {:?}",
+                            path,
+                            e
+                        );
                     }
                 }
             }
