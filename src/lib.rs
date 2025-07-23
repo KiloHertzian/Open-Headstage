@@ -50,7 +50,8 @@ impl Default for EqBandParams {
                     factor: FloatRange::skew_factor(-2.0),
                 },
             )
-            .with_unit(" Hz"),
+            .with_unit(" Hz")
+            .with_smoother(SmoothingStyle::Logarithmic(50.0)),
             q: FloatParam::new(
                 "Q",
                 1.0,
@@ -58,7 +59,8 @@ impl Default for EqBandParams {
                     min: 0.1,
                     max: 10.0,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(50.0)),
             gain: FloatParam::new(
                 "Gain",
                 0.0,
@@ -67,7 +69,8 @@ impl Default for EqBandParams {
                     max: 24.0,
                 },
             )
-            .with_unit(" dB"),
+            .with_unit(" dB")
+            .with_smoother(SmoothingStyle::Linear(50.0)),
         }
     }
 }

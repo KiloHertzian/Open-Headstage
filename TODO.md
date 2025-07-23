@@ -23,7 +23,7 @@ This file tracks the development tasks for the Open Headstage project.
 - [x] **Verification:** Debug and fix plugin loading failure in hosts like Carla.
 - [x] **Logging:** Enhance plugin logging to capture more details during initialization in a host environment.
 - [x] **UI:** Design and implement a visual representation of the speaker setup (azimuth/elevation).
-- [ ] **UX:** Ensure parameter changes from the UI are smooth and don't cause audio artifacts.
+- [x] **UX:** Ensure parameter changes from the UI are smooth and don't cause audio artifacts.
 
 ## Phase 3: Advanced Features & Polish
 
