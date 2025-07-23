@@ -24,7 +24,7 @@ The plugin processes stereo audio input, applies binaural spatialization using H
     *   `bindgen`: Used in `build.rs` to generate Rust FFI bindings to `libmysofa`.
 *   **User Interface (Optional Feature):**
     *   `egui` (via `nih_plug_egui`): For creating the graphical user interface.
-    *   `rfd` (Rust File Dialogs): For native file dialogs. **(Currently disabled due to causing host instability. See `BUGS.md`.)**
+    *   `egui-file-dialog`: For a self-contained, host-compatible file dialog rendered within `egui`. This approach is used to avoid native GUI toolkit conflicts.
 *   **Serialization:**
     *   `serde`: For serializing and deserializing plugin state (e.g., parameters).
 *   **Build System:** Cargo (Rust's package manager and build tool)
