@@ -21,7 +21,7 @@ This file tracks the development tasks for the Open Headstage project.
 - [x] **UI:** Implement a stable, host-compatible file dialog using `egui-file-dialog`.
   - **Reference:** `file_dialog_research.md`
 - [x] **Verification:** Debug and fix plugin loading failure in hosts like Carla.
-- [ ] **Logging:** Enhance plugin logging to capture more details during initialization in a host environment.
+- [x] **Logging:** Enhance plugin logging to capture more details during initialization in a host environment.
 - [ ] **UI:** Design and implement a visual representation of the speaker setup (azimuth/elevation).
 - [ ] **UX:** Ensure parameter changes from the UI are smooth and don't cause audio artifacts.
 

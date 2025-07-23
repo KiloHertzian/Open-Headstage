@@ -1,6 +1,7 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 // Make sure our modules are declared
@@ -180,6 +181,7 @@ struct OpenHeadstagePlugin {
     sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
     parametric_eq: StereoParametricEQ,
     current_sample_rate: f32,
+    has_logged_processing_start: AtomicBool,
 }
 
 impl Default for OpenHeadstagePlugin {
@@ -190,6 +192,7 @@ impl Default for OpenHeadstagePlugin {
             sofa_loader: Arc::new(parking_lot::Mutex::new(None)),
             parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0),
             current_sample_rate: 44100.0,
+            has_logged_processing_start: AtomicBool::new(false),
         }
     }
 }
@@ -310,14 +313,14 @@ impl Plugin for OpenHeadstagePlugin {
 
         Box::new(move |task| match task {
             Task::LoadSofa(path) => {
-                nih_log!("Loading SOFA file from: {:?}", path);
+                nih_log!("BACKGROUND: Loading SOFA file from: {:?}", path);
                 match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
                     Ok(loader) => {
-                        nih_log!("Successfully loaded SOFA file: {:?}", path);
+                        nih_log!("BACKGROUND: Successfully loaded SOFA file: {:?}", path);
                         *sofa_loader.lock() = Some(loader);
                     }
                     Err(e) => {
-                        nih_log!("Failed to load SOFA file '{:?}': {:?}", path, e);
+                        nih_log!("BACKGROUND: Failed to load SOFA file '{:?}': {:?}", path, e);
                         *sofa_loader.lock() = None;
                     }
                 }
@@ -363,6 +366,10 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
+        if !self.has_logged_processing_start.swap(true, Ordering::Relaxed) {
+            nih_log!("Audio processing started.");
+        }
+
         let _az_l = self.params.speaker_azimuth_left.smoothed.next();
         let _el_l = self.params.speaker_elevation_left.smoothed.next();
         let _az_r = self.params.speaker_azimuth_right.smoothed.next();
