@@ -5,37 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2025-07-24
+
+### Added
+- Implemented multiple filter types for the parametric EQ: Low Pass, High Pass, Band Pass, Notch, and All Pass.
+- Added a `ComboBox` to the UI for selecting the filter type for each EQ band.
+
+### Changed
+- Refactored the biquad filter implementation to use the `biquad` crate for improved robustness and accuracy.
+- Improved the layout of the 10-band parametric EQ editor for a more compact and user-friendly experience.
+
+## [0.1.0] - 2025-07-23
 
 ### Added
 - Initial project setup.
 - Core DSP structure for convolution and parametric EQ.
 - SOFA file loading capabilities via `libmysofa` and FFI.
-- Basic `nih-plug` integration for CLAP and VST3 plugin formats.
+- Basic `nih-plug` integration for CLAP plugin format.
 - `architecture.md` for developer and AI guidance.
 - This `CHANGELOG.md` file.
-
-### Changed
-- N/A
-
-### Deprecated
-- N/A
-
-### Removed
-- N/A
-
-### Fixed
-- N/A
-
-### Security
-- N/A
-
-## [0.1.0] - YYYY-MM-DD
-
-### Added
-- Project initialization.
-- Placeholder for first tagged release.
-- (This section will be filled out properly when version 0.1.0 is actually released. For now, the "Unreleased" section tracks ongoing development towards 0.1.0.)
+- Parsing of AutoEQ CSV files to apply headphone correction profiles.
+- A preset system for saving and loading plugin states.
+- A visualizer for the speaker setup.
 
 ---
 
