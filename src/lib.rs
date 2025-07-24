@@ -32,6 +32,7 @@ use crate::sofa::loader::MySofa;
 use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use egui_file_dialog::FileDialog;
 use parking_lot::RwLock;
+use strum::IntoEnumIterator;
 
 const NUM_EQ_BANDS: usize = 10;
 
@@ -349,10 +350,27 @@ impl Plugin for OpenHeadstagePlugin {
                                 for (i, band) in params.eq_bands.iter().enumerate() {
                                     ui.label(format!("{}", i + 1));
                                     ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
-                                    ui.add(widgets::ParamSlider::for_param(
-                                        &band.filter_type,
-                                        setter,
-                                    ));
+
+                                    let mut selected_type = band.filter_type.value();
+                                    egui::ComboBox::new(format!("filter_type_{}", i), "")
+                                        .selected_text(format!("{:?}", selected_type))
+                                        .show_ui(ui, |ui| {
+                                            for filter_type in FilterType::iter() {
+                                                if ui
+                                                    .selectable_value(
+                                                        &mut selected_type,
+                                                        filter_type,
+                                                        format!("{:?}", filter_type),
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    setter.begin_set_parameter(&band.filter_type);
+                                                    setter.set_parameter(&band.filter_type, filter_type);
+                                                    setter.end_set_parameter(&band.filter_type);
+                                                }
+                                            }
+                                        });
+
                                     ui.add(widgets::ParamSlider::for_param(
                                         &band.frequency,
                                         setter,
