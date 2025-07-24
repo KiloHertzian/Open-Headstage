@@ -30,3 +30,20 @@ Thumbs.db
 .vscode/
 .idea/
 *.sublime-workspace
+
+# Local dependencies and build artifacts
+/nih-plug-repo-and-examples/
+flamegraph.svg
+*.profraw
+
+# Ignore temporary AutoEq clone
+temp/AutoEq/
+
+# Project-specific ignores
+/CIPIC_hrtf_database.zip
+/clap-validator*
+/COMMIT_MSG.tmp
+/trace/
+/temp/
+/temp_nih_example/
+/scripts/venv/

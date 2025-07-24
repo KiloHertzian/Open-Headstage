@@ -1,7 +1,20 @@
+// Copyright 2025 SignalVerse
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use nih_plug_egui::egui::{
-    emath::RectTransform,
-    epaint::CircleShape,
-    Color32, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2, Widget,
+    emath::RectTransform, epaint::CircleShape, Color32, Pos2, Rect, Response, Sense, Shape, Stroke,
+    Ui, Vec2, Widget,
 };
 
 pub struct SpeakerVisualizer {
@@ -13,8 +26,7 @@ pub struct SpeakerVisualizer {
 
 impl Widget for SpeakerVisualizer {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (response, painter) =
-            ui.allocate_painter(Vec2::new(200.0, 200.0), Sense::hover());
+        let (response, painter) = ui.allocate_painter(Vec2::new(200.0, 200.0), Sense::hover());
 
         let to_screen = RectTransform::from_to(
             Rect::from_min_max(Pos2::new(-1.2, -1.2), Pos2::new(1.2, 1.2)),
@@ -47,8 +59,16 @@ impl Widget for SpeakerVisualizer {
             }));
         };
 
-        draw_speaker(self.left_azimuth, self.left_elevation, Color32::from_rgb(255, 0, 0));
-        draw_speaker(self.right_azimuth, self.right_elevation, Color32::from_rgb(0, 0, 255));
+        draw_speaker(
+            self.left_azimuth,
+            self.left_elevation,
+            Color32::from_rgb(255, 0, 0),
+        );
+        draw_speaker(
+            self.right_azimuth,
+            self.right_elevation,
+            Color32::from_rgb(0, 0, 255),
+        );
 
         response
     }

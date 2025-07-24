@@ -42,7 +42,7 @@ This document tracks known bugs, limitations, and the overall development status
     1.  **Replaced `StringParam`:** The non-existent `StringParam` was replaced with a `#[persist]` field: `pub sofa_file_path: Arc<RwLock<String>>`. This correctly handles persistent, non-parameter state.
     2.  **Corrected Thread Safety:** To safely share state between the audio processor, the UI, and the background task executor, `Arc<RwLock<>>` (for the SOFA path string) and `Arc<Mutex<>>` (for the `MySofa` loader) were used. This ensures safe interior mutability across threads.
     3.  **Fixed `task_executor`:** The `task_executor` was corrected to return a closure that captures the necessary thread-safe state (`Arc`-wrapped handles), resolving the ownership issues.
-    4.  **Made `ConvolutionEngine` Clonable:** The `ConvolutionEngine` struct was made clonable (`#[derive(Clone)]`) to allow it to be moved into the background closure, although this was later refactored to avoid unnecessary cloning.
+    4.  **Made `ConvolutionEngine` Clonable:** The `ConvolutionEngine` struct was made clonable (`#[derive(Clone)]`) to allow it to be moved into the background closure, although this was later refacored to avoid unnecessary cloning.
 *   **Lesson Learned:**
     1.  **Parameters vs. Persistent State:** Use `nih-plug`'s `Param` types (`FloatParam`, etc.) only for values that are automated and controlled by the host. For other state that needs to be saved, like file paths or editor state, use `#[persist]` on a thread-safe container like an `Arc<RwLock<T>>`.
     2.  **Threading is Explicit:** When sharing state between the UI/background threads and the real-time audio thread, standard Rust thread-safety patterns (`Arc`, `Mutex`, `RwLock`) are required. The plugin's main struct fields must be designed for this from the start if they are to be shared.
@@ -78,7 +78,7 @@ This document tracks known bugs, limitations, and the overall development status
 *   **Lesson Learned:**
     1.  **`cargo tree` is Essential:** For any dependency-related issue, especially in a complex ecosystem like `egui`, `cargo tree` is the first and most important diagnostic tool. It makes version conflicts immediately obvious.
     2.  **Manual Version Vetting:** When depending on libraries from git, you cannot rely on `crates.io`'s automatic semantic versioning. You must manually check the `Cargo.toml` of the git dependency to find its exact requirements, and then find compatible versions of any related libraries you wish to add.
-    3.  **Check the Source:** The `Cargo.toml` file of a crate is the ultimate source of truth for its dependencies. Browsing the file for specific tags in the git repository is a reliable way to find compatible versions.
+    3.  **Check the Source:** The `Cargo.toml` of a crate is the ultimate source of truth for its dependencies. Browsing the file for specific tags in the git repository is a reliable way to find compatible versions.
 
 ### VST3 Bundling Failure (Resolved)
 
@@ -90,3 +90,52 @@ This document tracks known bugs, limitations, and the overall development status
     1.  **`xtask` is not guaranteed:** The `cargo xtask` system is a convention, not a requirement. If it fails, it may be due to subtle configuration or versioning issues.
     2.  **Manual Bundling is a Viable Alternative:** The VST3 and CLAP formats are just specific directory structures. Understanding this allows for manual creation of the bundles, which is a robust fallback when the automated tooling fails.
     3.  **Isolate the Problem:** The `clap-validator` tool was critical in proving that the core plugin code was correct, which allowed me to focus on the VST3 packaging as the source of the problem.
+
+### Architectural Misunderstanding of `nih-plug` Testing & Benchmarking (Resolved)
+
+*   **Original Problem:** All attempts to create a `criterion`-based benchmark for the plugin's `process()` function failed with compilation errors. The errors indicated that the testing utility functions being used (`create_test_plugin`, `create_test_buffer`) did not exist and that core structs like `AuxiliaryBuffers` could not be instantiated.
+*   **Root Cause Analysis:** The attempts were based on a fundamental misunderstanding of the `nih-plug` testing philosophy. I was assuming a conventional, in-process unit testing model where the test code is responsible for mocking a host environment and creating test objects. This is incorrect. The `nih-plug` framework has evolved to a higher-fidelity, out-of-process integration testing model.
+*   **The Correct Paradigm (Standalone Execution):**
+    1.  The canonical way to test, debug, and benchmark a `nih-plug` plugin is to compile it as a standalone application.
+    2.  This is enabled by the `standalone` feature flag in `Cargo.toml` and the `nih_export_standalone()` macro.
+    3.  This standalone application acts as a minimal host that connects to a real audio backend like the JACK Audio Connection Kit.
+    4.  In this model, the developer does not create mock `Buffer` or `AuxiliaryBuffers` objects. Instead, the plugin *receives* real buffers from the JACK server via the standalone host wrapper.
+*   **Resolution:** The problem was resolved by abandoning the flawed in-process benchmark attempt and adopting the standalone execution model. A new research document, `docs/research/Benchmarking-nih-plug.md`, was created to document this correct paradigm.
+*   **Lesson Learned:**
+    1.  **Verify the Paradigm, Not Just the API:** Before trying to use a framework's API, first understand its underlying philosophy and architecture. My focus on finding specific functions led me astray because the entire paradigm I was assuming was wrong.
+    2.  **The `standalone` Feature is the Key to Testing:** The `standalone` feature is not merely for convenience; it is the entry point to the entire testing, debugging, and profiling workflow for `nih-plug`.
+    3.  **Trust the Source, Not Outdated Docs:** The discrepancy arose from relying on outdated information. A forensic analysis of the current `master` branch source code was the only way to uncover the truth. The official, bundled examples are the most reliable source of current best practices.
+    4.  **If It Feels Too Hard, You're Probably Doing It Wrong:** The immense difficulty I had trying to manually construct test objects was a signal that I was fighting the framework's design. The canonical method is much simpler because it delegates the hard work to the framework and the JACK server.
+
+### Standalone Build Failure due to `crate-type` (Resolved)
+
+*   **Original Problem:** After correctly configuring the project to build a standalone executable (`src/main.rs`), the build repeatedly failed with an `unresolved import` error. The binary crate (`main.rs`) was unable to find the library crate (`lib.rs`), even though the `use` statement (`use open_headstage::...`) was correct according to the hyphen-to-underscore rule.
+*   **Root Cause Analysis:** The `Cargo.toml` file contained a `[lib]` section that explicitly set the library's `crate-type` to `["cdylib"]`. This instruction tells `rustc` to *only* compile the library as a C-style dynamic library, which is suitable for being loaded by a plugin host. However, it prevents the compiler from also generating the standard Rust library file (`.rlib`) that is required for other Rust crates (like our `main.rs` binary) to link against it. The binary had no library file to link to, causing the "unresolved import" error at the linking stage.
+*   **Resolution:** The `crate-type` in `Cargo.toml` was modified to `["cdylib", "rlib"]`. This instructs Cargo to produce *both* the C-dynamic library for plugin hosts and the Rust library for other Rust crates.
+*   **Lesson Learned:**
+    1.  **`crate-type` is a Critical Override:** Explicitly setting `crate-type` in `Cargo.toml` completely overrides the default build outputs. If you need to link a Rust binary against your library (for testing, standalone executables, etc.), you **must** include `"rlib"` in the `crate-type` array.
+    2.  **The Build System is the Final Arbiter:** When source code appears correct but linking fails, the issue is almost certainly in the build configuration (`Cargo.toml`). The "unresolved import" error, in this case, was a symptom of a linking failure, not a module path error.
+    3.  **Follow the Checklist:** This issue was the final, most obscure item on the troubleshooting checklist from the `Rust Import Error Deep Dive.md` document. A systematic, step-by-step diagnosis is essential for solving complex build problems.
+
+### Strategic Project Phasing & Planning
+
+*   **Original Problem:** The project's `TODO.md` was structured chronologically based on when ideas were added, not by strategic priority. This led to a plan where complex, low-level DSP work was scheduled before high-value, user-facing features that could be implemented with existing code.
+*   **Resolution:** The `TODO.md` was completely re-ordered into a more logical sequence.
+    1.  **Legal & Licensing:** Moved to the beginning to de-risk the project early.
+    2.  **High-Value Features (AutoEQ):** Prioritized to deliver maximum user value with minimal new engineering.
+    3.  **Complex Core Features (Advanced EQ):** Grouped together into a dedicated phase.
+    4.  **Optimization:** Moved to the end, as it should be done after all features are implemented.
+*   **Lesson Learned:**
+    1.  **Prioritize by Value vs. Effort:** The most effective project plan prioritizes tasks that deliver the highest user value for the lowest implementation effort. The AutoEQ integration is a perfect example of this.
+    2.  **Foundation First:** Foundational, risk-reducing tasks like legal review and license management should be addressed early, even if they aren't user-facing features.
+    3.  **Regularly Re-evaluate the Plan:** A project plan is a living document. It should be reviewed and re-prioritized regularly to adapt to new information, completed tasks, and a better understanding of the remaining work.
+
+### Strategic Licensing & The "Open Core" Model
+
+*   **Situation:** The project initially aimed to support the VST3 plugin format. A routine dependency audit revealed that the `vst3-sys` crate is licensed under `GPLv3` due to the VST3 SDK's own licensing terms. This created a direct conflict with the goal of maintaining long-term flexibility and the potential for future commercialization.
+
+*   **Lesson Learned 1: Plugin format dictates the project's license.** The choice to support a specific plugin format is not just a technical decision but a critical legal one. The VST3 SDK's GPLv3 license option forces any open-source project using it to adopt the GPLv3 license as well. This "copyleft" nature must be evaluated at the very beginning of a project, as it has profound implications for all future development and distribution.
+
+*   **Lesson Learned 2: Prioritize permissive licenses for future flexibility.** For a project that may have future commercial ambitions (even uncertain ones), a permissive license (like Apache-2.0 or MIT) is the superior choice. It allows the copyright holder to re-license the code for commercial products later. A copyleft license like GPLv3 permanently closes this door. We specifically chose **Apache-2.0** over MIT for its explicit patent grant clause, which offers stronger protection against patent-related lawsuits for both the project and its users.
+
+*   **Lesson Learned 3: The "Open Core" model requires a CLA.** The strategy to balance a free, open-source project with future proprietary modules is the "Open Core" model. The key legal tool to enable this is a **Contributor License Agreement (CLA)**. A CLA ensures that the project owner retains full rights to re-license all contributed code, which is essential for creating a commercial version without needing to get permission from every past contributor.

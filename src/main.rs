@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// src/dsp/mod.rs
+use open_headstage::OpenHeadstagePlugin;
+use nih_plug::prelude::nih_export_standalone;
 
-/// This module contains Digital Signal Processing (DSP) components
-/// for the Open Headstage plugin.
-pub mod convolution;
-pub mod parametric_eq;
+fn main() {
+    nih_export_standalone::<OpenHeadstagePlugin>();
+}
+

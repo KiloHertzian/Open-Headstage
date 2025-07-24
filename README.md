@@ -2,6 +2,10 @@
 
 Open Headstage is an open-source binaural speaker simulation plugin for headphones, designed for Linux-based audio professionals and enthusiasts. The goal is to provide a high-quality, flexible tool for experiencing stereo audio as if listening to physical speakers in a well-defined acoustic space.
 
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+
 ## Current Status
 
 **This project is in an alpha stage.** The core features are implemented, and the plugin compiles and passes basic validation. However, there are known issues with running it in some plugin hosts like Carla. The UI is functional but incomplete.
