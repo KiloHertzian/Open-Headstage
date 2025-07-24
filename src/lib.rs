@@ -336,50 +336,45 @@ impl Plugin for OpenHeadstagePlugin {
                     }
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        egui::Grid::new("eq_grid")
-                            .num_columns(6)
-                            .spacing([10.0, 4.0])
-                            .show(ui, |ui| {
-                                ui.label("On");
-                                ui.label("Type");
-                                ui.label("Freq");
-                                ui.label("Q");
-                                ui.label("Gain");
-                                ui.end_row();
+                        ui.vertical(|ui| {
+                            for (i, band) in params.eq_bands.iter().enumerate() {
+                                ui.group(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("{:>2}", i + 1));
+                                        ui.add(widgets::ParamSlider::for_param(&band.enabled, setter).with_width(20.0));
 
-                                for (i, band) in params.eq_bands.iter().enumerate() {
-                                    ui.label(format!("{}", i + 1));
-                                    ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
-
-                                    let mut selected_type = band.filter_type.value();
-                                    egui::ComboBox::new(format!("filter_type_{}", i), "")
-                                        .selected_text(format!("{:?}", selected_type))
-                                        .show_ui(ui, |ui| {
-                                            for filter_type in FilterType::iter() {
-                                                if ui
-                                                    .selectable_value(
-                                                        &mut selected_type,
-                                                        filter_type,
-                                                        format!("{:?}", filter_type),
-                                                    )
-                                                    .clicked()
-                                                {
-                                                    setter.begin_set_parameter(&band.filter_type);
-                                                    setter.set_parameter(&band.filter_type, filter_type);
-                                                    setter.end_set_parameter(&band.filter_type);
+                                        let mut selected_type = band.filter_type.value();
+                                        egui::ComboBox::new(format!("filter_type_{}", i), "")
+                                            .selected_text(format!("{:?}", selected_type))
+                                            .show_ui(ui, |ui| {
+                                                for filter_type in FilterType::iter() {
+                                                    if ui
+                                                        .selectable_value(
+                                                            &mut selected_type,
+                                                            filter_type,
+                                                            format!("{:?}", filter_type),
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        setter.begin_set_parameter(&band.filter_type);
+                                                        setter.set_parameter(&band.filter_type, filter_type);
+                                                        setter.end_set_parameter(&band.filter_type);
+                                                    }
                                                 }
-                                            }
-                                        });
-
-                                    ui.add(widgets::ParamSlider::for_param(
-                                        &band.frequency,
-                                        setter,
-                                    ));
-                                    ui.add(widgets::ParamSlider::for_param(&band.q, setter));
-                                    ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
-                                    ui.end_row();
-                                }
-                            });
+                                            });
+                                    });
+                                    
+                                    ui.horizontal(|ui| {
+                                        ui.label("Freq");
+                                        ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
+                                        ui.label("Q");
+                                        ui.add(widgets::ParamSlider::for_param(&band.q, setter));
+                                        ui.label("Gain");
+                                        ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
+                                    });
+                                });
+                            }
+                        });
                     });
                 });
 
