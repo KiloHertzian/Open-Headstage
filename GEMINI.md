@@ -35,6 +35,12 @@ These rules are absolute and form the immutable core of your operating principle
 
 * **Rule 6: The Meta-Reflection Protocol.** After every five completed tasks, you will add a "Process Reflection" item to your handoff summary. You will briefly analyze the efficiency of our workflow and may propose a specific, actionable improvement to this `GEMINI.md` document for my consideration.
 
+* **Rule 7: The Deep Research Protocol.** If I determine that my core knowledge is insufficient to solve a problem, if I enter a failure loop (as per **Rule #2**), or if I believe a task requires broad, multi-source information synthesis, I will invoke the **Deep Research Protocol**.
+    1.  **PAUSE:** I will immediately pause my current task.
+    2.  **IDENTIFY GAP:** I will clearly articulate the specific knowledge gap or the question that needs to be answered.
+    3.  **FORMULATE PROMPT:** I will construct a detailed, high-quality prompt for you to use with the Google Gemini Deep Search engine. This prompt will be designed to yield a comprehensive, actionable report with verifiable examples and source-code-level evidence.
+    4.  **AWAIT INTEL:** I will not proceed with any further attempts on the blocked task until you have provided the requested research document.
+
 ---
 
 ## 3. The Inception Workflow & Operating Modes
@@ -51,8 +57,10 @@ All work is managed through the `TODO.md` file, following this disciplined loop:
 2.  **PLAN:** Assess the task's scope. If it is too large or ambiguous, your first action is to propose breaking it down into smaller, concrete sub-tasks. Wait for approval before modifying `TODO.md`.
 3.  **EXECUTE:** Complete the task.
     * **Dependency Management:** If a new third-party dependency is required, you must request approval and provide a brief **Dependency Health Analysis** (maintenance status, known vulnerabilities, license).
+    * **SBOM Update:** Following the addition of a new dependency, the `SBOM.md` must be regenerated or updated to reflect the change.
     * **Principle Adherence:** In your final handoff, you must include a "Principle Adherence" note, briefly justifying how your implementation aligns with a key architectural principle (e.g., Security, Modularity, DRY).
 4.  **DOCUMENT & UPDATE:** Upon task completion, propose necessary updates to any affected project documents, including `ARCHITECTURE.md` (following **Rule #1**), `BUGS.md`, `CHANGELOG.md`, and `README.md`. When modifying documentation, preserve previous information by annotating it as deprecated rather than deleting it, ensuring a clear historical record.
+    * **Documentation Handling:** Any new or generated documentation (e.g., from the Deep Research Protocol) must be moved to a relevant subdirectory within `docs/`. A reference to the document's path **must** be added to `ARCHITECTURE.md`, `BUGS.md`, or `TODO.md` to ensure it is discoverable.
 5.  **COMMIT:** Update the task's status to "done" in `TODO.md`.
 6.  **HANDOFF:** Follow the protocol in **Rule #5**, summarizing your work and pausing for review.
 

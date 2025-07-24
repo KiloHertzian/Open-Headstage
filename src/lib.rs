@@ -1,3 +1,17 @@
+// Copyright 2025 SignalVerse
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
@@ -18,6 +32,7 @@ use crate::sofa::loader::MySofa;
 use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use egui_file_dialog::FileDialog;
 use parking_lot::RwLock;
+use strum::IntoEnumIterator;
 
 const NUM_EQ_BANDS: usize = 10;
 
@@ -197,7 +212,7 @@ impl Default for EditorState {
     }
 }
 
-struct OpenHeadstagePlugin {
+pub struct OpenHeadstagePlugin {
     params: Arc<OpenHeadstageParams>,
     convolution_engine: ConvolutionEngine,
     sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
@@ -266,16 +281,28 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.strong("Speaker Configuration");
                             ui.end_row();
                             ui.label("Left Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_azimuth_left,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Left Elevation");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_elevation_left,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Right Azimuth");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_azimuth_right,
+                                setter,
+                            ));
                             ui.end_row();
                             ui.label("Right Elevation");
-                            ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
+                            ui.add(widgets::ParamSlider::for_param(
+                                &params.speaker_elevation_right,
+                                setter,
+                            ));
                             ui.end_row();
 
                             let visualizer = SpeakerVisualizer {
@@ -323,8 +350,31 @@ impl Plugin for OpenHeadstagePlugin {
                                 for (i, band) in params.eq_bands.iter().enumerate() {
                                     ui.label(format!("{}", i + 1));
                                     ui.add(widgets::ParamSlider::for_param(&band.enabled, setter));
-                                    ui.add(widgets::ParamSlider::for_param(&band.filter_type, setter));
-                                    ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
+
+                                    let mut selected_type = band.filter_type.value();
+                                    egui::ComboBox::new(format!("filter_type_{}", i), "")
+                                        .selected_text(format!("{:?}", selected_type))
+                                        .show_ui(ui, |ui| {
+                                            for filter_type in FilterType::iter() {
+                                                if ui
+                                                    .selectable_value(
+                                                        &mut selected_type,
+                                                        filter_type,
+                                                        format!("{:?}", filter_type),
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    setter.begin_set_parameter(&band.filter_type);
+                                                    setter.set_parameter(&band.filter_type, filter_type);
+                                                    setter.end_set_parameter(&band.filter_type);
+                                                }
+                                            }
+                                        });
+
+                                    ui.add(widgets::ParamSlider::for_param(
+                                        &band.frequency,
+                                        setter,
+                                    ));
                                     ui.add(widgets::ParamSlider::for_param(&band.q, setter));
                                     ui.add(widgets::ParamSlider::for_param(&band.gain, setter));
                                     ui.end_row();
@@ -416,7 +466,10 @@ impl Plugin for OpenHeadstagePlugin {
                             path
                         );
                         if let Err(e) = sender.send(parsed_bands) {
-                            nih_log!("BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}", e);
+                            nih_log!(
+                                "BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}",
+                                e
+                            );
                         }
                     }
                     Err(e) => {
@@ -450,7 +503,7 @@ impl Plugin for OpenHeadstagePlugin {
                 Ok(sofa_loader) => {
                     nih_log!("Successfully loaded SOFA file.");
                     *self.sofa_loader.lock() = Some(sofa_loader)
-                },
+                }
                 Err(e) => nih_log!("Failed to load SOFA file '{}': {:?}", sofa_path_str, e),
             }
         }
@@ -469,7 +522,10 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        if !self.has_logged_processing_start.swap(true, Ordering::Relaxed) {
+        if !self
+            .has_logged_processing_start
+            .swap(true, Ordering::Relaxed)
+        {
             nih_log!("Audio processing started.");
         }
 
@@ -491,14 +547,16 @@ impl Plugin for OpenHeadstagePlugin {
                     gain_db: band_params.gain.smoothed.next(),
                     enabled: band_params.enabled.value(),
                 };
-                self.parametric_eq.update_band_coeffs(i, self.current_sample_rate, &band_config);
+                self.parametric_eq
+                    .update_band_coeffs(i, self.current_sample_rate, &band_config);
             }
             self.parametric_eq.process_block(left, right);
         }
 
         let input_l = left.to_vec();
         let input_r = right.to_vec();
-        self.convolution_engine.process_block(&input_l, &input_r, left, right);
+        self.convolution_engine
+            .process_block(&input_l, &input_r, left, right);
 
         let master_gain = self.params.output_gain.smoothed.next();
         for mut channel_samples in buffer.iter_samples() {
@@ -519,11 +577,15 @@ impl ClapPlugin for OpenHeadstagePlugin {
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Stereo];
 }
 
-impl Vst3Plugin for OpenHeadstagePlugin {
-    const VST3_CLASS_ID: [u8; 16] = *b"OpenHeadstageXXX";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
-        &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
-}
+// VST3 support is disabled by default to avoid the GPLv3 license.
+// To re-enable, add the `vst3` feature to the `nih_plug` dependency in `Cargo.toml`
+// and uncomment the code below.
+//
+// impl Vst3Plugin for OpenHeadstagePlugin {
+//     const VST3_CLASS_ID: [u8; 16] = *b"OpenHeadstageXXX";
+//     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
+//         &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
+// }
 
 nih_export_clap!(OpenHeadstagePlugin);
-nih_export_vst3!(OpenHeadstagePlugin);
+// nih_export_vst3!(OpenHeadstagePlugin);

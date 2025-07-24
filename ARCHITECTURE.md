@@ -58,7 +58,8 @@ This directory contains modules for various audio processing tasks.
 
 *   **`src/dsp/parametric_eq.rs` (StereoParametricEQ, BiquadFilter)**
     *   **Responsibility:** Implements a multi-band stereo parametric equalizer. Used for headphone correction.
-    *   **Details:** Consists of `BiquadFilter` (implementing filter types like Peak, LowShelf, HighShelf based on Audio EQ Cookbook formulas) and `StereoParametricEQ` (managing a bank of these filters for stereo processing).
+    *   **Details:** Consists of `BiquadFilter` (implementing filter types like Peak, LowShelf, HighShelf based on Audio EQ Cookbook formulas) and `StereoParametricEQ` (managing a bank of these filters for stereo processing). For a detailed analysis of different filter implementation strategies (IIR vs. FIR, phase characteristics, and latency), refer to the research document.
+    *   **Reference:** `docs/research/EQ Implementation in Rust Research.md`
     *   **Key Structs/Methods:** `StereoParametricEQ`, `BiquadFilter`, `update_band_coeffs()`, `process_stereo_sample()`.
 
 *   **`src/dsp/mod.rs`**
@@ -164,7 +165,7 @@ This directory contains modules for various audio processing tasks.
 
 ## 8. Documentation
 
-*   **CLAP Plugin Development Guide:** For detailed information on CLAP plugin development using `nih-plug`, SOFA integration, DSP implementation, and UI design, refer to the `CLAP Plugin Development Documentation.md` file in the project root. This document serves as a comprehensive guide for the technical implementation aspects of the plugin.
+*   **CLAP Plugin Development Guide:** For detailed information on CLAP plugin development using `nih-plug`, SOFA integration, DSP implementation, and UI design, refer to the `docs/research/CLAP Plugin Development Documentation.md` file in the project root. This document serves as a comprehensive guide for the technical implementation aspects of the plugin.
 
 ## 9. License Management
 
@@ -180,6 +181,17 @@ This section outlines potential future directions for the project, building upon
     *   Expanding the plugin's input channel configuration.
     *   Managing a full set of HRTFs for each surround channel (e.g., L, R, C, LFE, Ls, Rs, etc.).
     *   Extending the `ConvolutionEngine` to handle more than two input channels.
+
+## 11. Crate Structure (`lib.rs` vs. `main.rs`)
+
+This project follows the canonical Rust pattern of having both a library crate (`src/lib.rs`) and a binary crate (`src/main.rs`). Understanding their relationship is critical for development.
+
+*   **The "Two Crates, One Package" Model:** The `lib.rs` file defines the core library, containing all DSP logic and plugin functionality. The `main.rs` file defines a separate binary crate that acts as a consumer of the library, typically for creating a standalone executable.
+*   **Visibility:** For items in the library (like `OpenHeadstagePlugin`) to be accessible by the binary, they must be declared as `pub`.
+*   **Importing:** The binary crate must import items from the library using the package name, e.g., `use open_headstage::OpenHeadstagePlugin;`.
+
+For a complete and detailed explanation of this architecture, refer to the
+           **`docs/research/Rust_lib.rs_main.rs_guide.md`** and **`docs/research/Rust Import Error Deep Dive.md`** documents in the project root.
 
 ---
 
