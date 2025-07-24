@@ -24,7 +24,6 @@ This file tracks the development tasks for the Open Headstage project.
 ## Phase 2: User Interface & User Experience (Complete)
 
 - [x] **UI:** Implement a stable, host-compatible file dialog using `egui-file-dialog`.
-  - **Reference:** `file_dialog_research.md`
 - [x] **Verification:** Debug and fix plugin loading failure in hosts like Carla.
 - [x] **Logging:** Enhance plugin logging to capture more details during initialization in a host environment.
 - [x] **UI:** Design and implement a visual representation of the speaker setup (azimuth/elevation).
@@ -51,19 +50,16 @@ This file tracks the development tasks for the Open Headstage project.
 
 - [x] **[BUILD-1] Verify Project Compilation:**
   - **Description:** After significant changes to licensing and dependencies (disabling VST3), ensure the project compiles cleanly on the main branch.
-  - **Sub-tasks:**
-    - [ ] Run `cargo check --all-targets`.
-    - [ ] Run `cargo build`.
-    - [ ] Run `cargo test`.
-  - **Goal:** Establish a clean, stable baseline before beginning new feature development.
+  - **Status:** DONE
 
-- [ ] **[DSP-ADV] Implement Multiple Filter Types:**
+- [x] **[DSP-ADV] Implement Multiple Filter Types:**
   - **Description:** Implement a selection of DSP filter types for the parametric EQ, allowing the user to choose based on their needs.
   - **Sub-tasks:**
-    - [ ] Implement standard IIR (Minimum-Phase) biquad filters.
+    - [x] Implement standard IIR (Minimum-Phase) biquad filters using the `biquad` crate.
     - [ ] Implement Linear-Phase FIR filters (via FFT convolution) for high-fidelity "mastering" mode.
     - [ ] Research and potentially implement a hybrid approach (e.g., oversampling).
   - **Reference:** `docs/research/EQ Implementation in Rust Research.md`
+  - **Status:** DONE
 
 - [ ] **[UI-ADV] Design Foundational UI for Advanced EQ:**
   - **Description:** Conduct a dedicated UI/UX research and design phase for the advanced EQ features. The goal is to create a powerful and intuitive interface.
@@ -73,7 +69,14 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] Design the UI flow for selecting a headphone and target profile, in preparation for the AutoEQ integration.
 - [ ] **[META] Phase Review:** Document key decisions and lessons learned in `BUGS.md`.
 
-## Phase 6: AutoEQ Database Integration
+## Phase 6: UI Refinement & Release Preparation
+
+- [ ] **[UI-REFINEMENT] Improve layout and clarity of the 10-band PEQ editor.**
+- [ ] **[RELEASE-PREP] Verify all features are working as expected for a v0.2.0 release.**
+- [ ] **[RELEASE-PREP] Update CHANGELOG.md for v0.2.0.**
+- [ ] **[RELEASE-PREP] Create a git tag for v0.2.0.**
+
+## Phase 7: AutoEQ Database Integration
 
 - [ ] **[FEAT-AEQ] Integrate AutoEQ Database:**
   - **Description:** Parse the AutoEQ results database and make it available within the plugin's UI as a preset system.
@@ -83,7 +86,7 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] Implement the logic to apply the selected AutoEQ preset to the plugin's parametric EQ bands.
 - [ ] **[META] Phase Review:** Document key decisions and lessons learned in `BUGS.md`.
 
-## Phase 7: Performance, Polish & Education
+## Phase 8: Performance, Polish & Education
 
 - [ ] **[PERF-1] Profile and Optimize DSP Code:**
   - **Description:** Profile and optimize the complete DSP code path using the standalone/JACK methodology.
@@ -96,7 +99,7 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] The panel should include a comparison table for filter types (Latency, CPU Usage, Phase Response, Use Case).
 - [ ] **[META] Phase Review:** Document key decisions and lessons learned in `BUGS.md`.
 
-## Phase 8: Process Improvement & Refinement
+## Phase 9: Process Improvement & Refinement
 
 - [ ] **[META-1] Review and Canonize GEMINI.md:**
   - **Description:** Under strict user supervision, review the `GEMINI.md` file to identify core, immutable principles and enclose them in `<canon>` blocks.
