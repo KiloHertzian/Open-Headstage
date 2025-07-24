@@ -1,3 +1,17 @@
+// Copyright 2025 SignalVerse
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
@@ -197,7 +211,7 @@ impl Default for EditorState {
     }
 }
 
-struct OpenHeadstagePlugin {
+pub struct OpenHeadstagePlugin {
     params: Arc<OpenHeadstageParams>,
     convolution_engine: ConvolutionEngine,
     sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
@@ -545,11 +559,15 @@ impl ClapPlugin for OpenHeadstagePlugin {
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Stereo];
 }
 
-impl Vst3Plugin for OpenHeadstagePlugin {
-    const VST3_CLASS_ID: [u8; 16] = *b"OpenHeadstageXXX";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
-        &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
-}
+// VST3 support is disabled by default to avoid the GPLv3 license.
+// To re-enable, add the `vst3` feature to the `nih_plug` dependency in `Cargo.toml`
+// and uncomment the code below.
+//
+// impl Vst3Plugin for OpenHeadstagePlugin {
+//     const VST3_CLASS_ID: [u8; 16] = *b"OpenHeadstageXXX";
+//     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
+//         &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];
+// }
 
 nih_export_clap!(OpenHeadstagePlugin);
-nih_export_vst3!(OpenHeadstagePlugin);
+// nih_export_vst3!(OpenHeadstagePlugin);

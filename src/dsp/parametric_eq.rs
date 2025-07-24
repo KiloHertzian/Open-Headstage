@@ -1,3 +1,17 @@
+// Copyright 2025 SignalVerse
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // src/dsp/parametric_eq.rs
 
 use nih_plug::prelude::Enum;
@@ -259,7 +273,7 @@ impl ParametricEQ {
                                                               // A quick fix: duplicate bands or make BiquadFilter stereo.
                                                               // For this step, let's assume we want the same EQ curve on L/R
                                                               // but process them independently regarding state.
-                                                              // This implies ParametricEQ should manage pairs of BiquadFilters or BiquadFilter should be stereo.
+                                                              // This implies ParametricEQ should manage pairs of BiquadFilters or BiquadFilter should be stereo-aware.
                                                               // The simplest change for now is to acknowledge this limitation.
                                                               // A correct implementation would require BiquadFilter to be duplicated or made stereo-aware.
                                                               // Let's process right channel using the same filter instance for now, which is WRONG for state.

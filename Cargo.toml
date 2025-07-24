@@ -2,10 +2,15 @@
 name = "open-headstage"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 rust-version = "1.87"
 
 [dependencies]
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs"] }
+# VST3 support has been explicitly disabled to avoid the GPLv3 license of the VST3 SDK.
+# We are focusing on CLAP as the primary plugin format, which uses the permissive MIT license.
+# To re-enable VST3, you would need to add "vst3" to the features list below and accept
+# that the entire project must be licensed under GPLv3.
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default-features = false, features = ["standalone"] }
 nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
 egui-file-dialog = { version = "0.10.0", optional = true }
 dirs = "5.0.1"
@@ -25,8 +30,12 @@ ui = ["nih_plug_egui", "egui-file-dialog"]
 bindgen = "0.70"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dev-dependencies]
 criterion = "0.5"
 rand = "0.8"
+
+# [[bench]]
+# name = "process_block"
+# harness = false
