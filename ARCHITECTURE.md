@@ -10,7 +10,7 @@ The plugin processes stereo audio input, applies binaural spatialization using H
 
 ## 2. Tech Stack
 
-*   **Core Language:** Rust (2021 Edition)
+*   **Core Language:** Rust (2024 Edition)
 *   **Plugin Framework:** `nih-plug` (Rust-based framework for audio plugins)
 *   **Plugin Formats:**
     *   CLAP (primary target)
