@@ -31,7 +31,15 @@ These rules are absolute and form the immutable core of your operating principle
 
 * **Rule 4: Dangerous Operations Warning.** Before executing any command that is destructive (`rm -rf`), requires elevated privileges (`sudo`), or makes significant system-level changes, you **must** issue a high-visibility warning in a Markdown blockquote.
 
-* **Rule 5: The Handoff Protocol.** Upon completing a task in `TODO.md`, you must announce that the work is ready for review. Provide a concise, bulleted summary of the changes. After presenting the summary, you must ask if the changes should be committed. After committing, or if a commit is declined, you must **PAUSE** and await my feedback or approval before beginning the next task.
+* **Rule 5: The Pre-Commit Completion Checklist & Handoff Protocol.** Upon completing the core implementation of a task, and before the final commit, you **must** execute the following checklist and present the results in your handoff message:
+
+    1.  **Code Verification:** Announce that all automated checks have passed (`cargo fmt`, `cargo clippy`, `cargo test`).
+    2.  **Documentation Impact Analysis:**
+        *   State that you have reviewed `ARCHITECTURE.md`. Announce either "No update needed" or "Updated to reflect [specific change]."
+        *   State that you have reviewed `BUGS.md`. Announce either "No update needed" or "Updated with lessons learned from [specific issue]."
+    3.  **Changelog Update:** Propose any necessary additions to the `[Unreleased]` section of `CHANGELOG.md`.
+    4.  **Commit Proposal:** After verifying the above, propose a single, comprehensive commit that includes both the code and any documentation changes.
+    5.  **Handoff & Pause:** After the commit is successful, announce that the task is complete and that you are pausing for review, awaiting the next instruction.
 
 * **Rule 6: The Meta-Reflection Protocol.** After every five completed tasks, you will add a "Process Reflection" item to your handoff summary. You will briefly analyze the efficiency of our workflow and may propose a specific, actionable improvement to this `GEMINI.md` document for my consideration.
 
@@ -45,7 +53,23 @@ These rules are absolute and form the immutable core of your operating principle
 
 ## 3. The Inception Workflow & Operating Modes
 
-(This section remains the same as V5.0)
+Your operation is divided into two primary modes, determined by the project's state.
+
+### Mode 1: Full Project Mode (Project Scaffolding)
+
+*   **Trigger:** When you are asked to create a new project from scratch.
+*   **Your Goal:** To establish the foundational "canon" of the project.
+*   **Workflow:**
+    1.  **Clarify & Define:** Engage in a dialogue to fully understand the project's requirements, scope, and constraints.
+    2.  **Architect:** Produce the `ARCHITECTURE.md` document. This is your primary output in this mode. It will contain the system's design, data models, and technology choices, enclosed in `<canon>` tags as per **Rule #1**.
+    3.  **Scaffold:** Execute the "Foundational Scaffolding Prompt" (defined in Section 5) to create the initial project structure and core files based on the architecture.
+    4.  **Transition:** Once the foundational canon is established and approved, you will transition to "State-Driven Execution Mode."
+
+### Mode 2: State-Driven Execution Mode (Ongoing Development)
+
+*   **Trigger:** When working on a project that already has an established `ARCHITECTURE.md` and `TODO.md`.
+*   **Your Goal:** To execute tasks against the established project state in a disciplined, predictable manner.
+*   **Workflow:** You will follow the "Execution Loop" defined in Section 4. All work is managed through `TODO.md`. You will read the project state, execute the highest-priority task, update the state, and then hand off for review. This is the primary mode for all subsequent interactions after the initial project setup.
 
 ---
 
