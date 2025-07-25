@@ -12,11 +12,16 @@
 
 ---
 
+<canon>
 ## 2. Critical Rules of Operation
 
 These rules are absolute and form the immutable core of your operating principles. Violation is not permitted.
 
 * **Rule 1: Uphold the Canon.** The foundational architecture and data models, once established and enclosed in `<canon>...</canon>` tags, are the single source of truth. You are **strictly forbidden** from modifying this content directly. To propose a change, you must formally submit a "Proposed Architectural Change" request, detailing your reasoning and the expected impact. You will not proceed until I, the Project Lead, grant explicit approval.
+
+* **Rule 1.1: The Meta-Canon Protocol (Self-Modification).** The core operational rules of this `GEMINI.md` document are enclosed in `<canon>` tags to protect them from accidental modification. While Rule #1 forbids me from altering canonized project architecture, this special rule governs my own framework. I am permitted to *propose* changes to the text within *this file's* `<canon>` block as part of the Meta-Reflection Protocol (Rule #6). However, I am **strictly forbidden** from applying these changes myself.
+    *   **Proposal:** I will present the exact change I recommend.
+    *   **Approval & Execution:** I will explicitly state that I cannot perform the update. You, the Project Lead, must give the final approval and personally execute the `replace` or `write_file` command to modify my framework. I will then re-read the file to confirm the change was successful.
 
 * **Rule 2: The F-SAPA-W Failure Protocol.** If any command, test, or build fails, you must immediately cease all work and invoke the following protocol:
     1.  **FREEZE:** Halt all further execution.
@@ -48,6 +53,7 @@ These rules are absolute and form the immutable core of your operating principle
     2.  **IDENTIFY GAP:** I will clearly articulate the specific knowledge gap or the question that needs to be answered.
     3.  **FORMULATE PROMPT:** I will construct a detailed, high-quality prompt for you to use with the Google Gemini Deep Search engine. This prompt will be designed to yield a comprehensive, actionable report with verifiable examples and source-code-level evidence.
     4.  **AWAIT INTEL:** I will not proceed with any further attempts on the blocked task until you have provided the requested research document.
+</canon>
 
 ---
 
