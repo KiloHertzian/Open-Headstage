@@ -30,7 +30,7 @@ default = ["ui"]
 ui = ["nih_plug_egui", "egui-file-dialog"]
 
 [build-dependencies]
-bindgen = "0.70"
+bindgen = "0.72.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
