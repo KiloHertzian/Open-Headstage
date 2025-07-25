@@ -48,7 +48,7 @@ pub struct BiquadFilter {
 impl Clone for BiquadFilter {
     fn clone(&self) -> Self {
         Self {
-            filter: self.filter.clone(),
+            filter: self.filter,
             enabled: self.enabled,
         }
     }
