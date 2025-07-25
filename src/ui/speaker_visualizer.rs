@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use nih_plug_egui::egui::{
-    emath::RectTransform, epaint::CircleShape, Color32, Pos2, Rect, Response, Sense, Shape, Stroke,
-    Ui, Vec2, Widget,
+    Color32, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2, Widget, emath::RectTransform,
+    epaint::CircleShape,
 };
 
 pub struct SpeakerVisualizer {

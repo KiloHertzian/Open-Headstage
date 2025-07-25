@@ -14,10 +14,10 @@
 
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // Make sure our modules are declared
 mod autoeq_parser;
@@ -341,7 +341,10 @@ impl Plugin for OpenHeadstagePlugin {
                                 ui.group(|ui| {
                                     ui.horizontal(|ui| {
                                         ui.label(format!("{:>2}", i + 1));
-                                        ui.add(widgets::ParamSlider::for_param(&band.enabled, setter).with_width(20.0));
+                                        ui.add(
+                                            widgets::ParamSlider::for_param(&band.enabled, setter)
+                                                .with_width(20.0),
+                                        );
 
                                         let mut selected_type = band.filter_type.value();
                                         egui::ComboBox::new(format!("filter_type_{}", i), "")
@@ -356,17 +359,24 @@ impl Plugin for OpenHeadstagePlugin {
                                                         )
                                                         .clicked()
                                                     {
-                                                        setter.begin_set_parameter(&band.filter_type);
-                                                        setter.set_parameter(&band.filter_type, filter_type);
+                                                        setter
+                                                            .begin_set_parameter(&band.filter_type);
+                                                        setter.set_parameter(
+                                                            &band.filter_type,
+                                                            filter_type,
+                                                        );
                                                         setter.end_set_parameter(&band.filter_type);
                                                     }
                                                 }
                                             });
                                     });
-                                    
+
                                     ui.horizontal(|ui| {
                                         ui.label("Freq");
-                                        ui.add(widgets::ParamSlider::for_param(&band.frequency, setter));
+                                        ui.add(widgets::ParamSlider::for_param(
+                                            &band.frequency,
+                                            setter,
+                                        ));
                                         ui.label("Q");
                                         ui.add(widgets::ParamSlider::for_param(&band.q, setter));
                                         ui.label("Gain");

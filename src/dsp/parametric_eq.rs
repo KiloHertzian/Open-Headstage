@@ -96,9 +96,13 @@ impl BiquadFilter {
             FilterType::AllPass => Type::AllPass,
         };
 
-        let coeffs =
-            Coefficients::<f32>::from_params(filter_type_biquad, sample_rate.hz(), center_freq.hz(), q)
-                .unwrap();
+        let coeffs = Coefficients::<f32>::from_params(
+            filter_type_biquad,
+            sample_rate.hz(),
+            center_freq.hz(),
+            q,
+        )
+        .unwrap();
         self.filter.update_coefficients(coeffs);
     }
 

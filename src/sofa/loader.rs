@@ -291,7 +291,9 @@ mod tests {
                         println!("Successfully caught MysofaFilter as expected.");
                     }
                     Ok(_) => {
-                        panic!("mysofa_getfilter_float did not return an error for potentially invalid parameters (radius 0.0). This might indicate the specific SOFA file handles this case gracefully, or the error condition wasn't triggered as expected.");
+                        panic!(
+                            "mysofa_getfilter_float did not return an error for potentially invalid parameters (radius 0.0). This might indicate the specific SOFA file handles this case gracefully, or the error condition wasn't triggered as expected."
+                        );
                     }
                     Err(e) => {
                         panic!("Expected MysofaFilter, but got a different error: {:?}", e);
