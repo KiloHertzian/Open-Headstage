@@ -1,3 +1,271 @@
+Definitive Guide to the CLAP Plugin Bundle Structure on Linux
+
+
+Part 1: Foundational Concepts - The Rationale for CLAP Bundles
+
+
+1.1 Introduction to the CLAP Philosophy
+
+The CLever Audio Plug-in (CLAP) standard represents a modern approach to audio plugin architecture, designed from the ground up to address the performance, stability, and extensibility limitations of older formats.1 At its core, CLAP is defined by a stable, C-only Application Binary Interface (ABI).3 This foundational choice ensures robust forward and backward compatibility; a plugin compiled against a specific version of the CLAP ABI, such as 1.x, can be loaded by any host that supports a compatible version, like 1.y, without requiring recompilation.3
+Furthermore, the standard is open-source under the permissive MIT license, which eliminates licensing fees and complex legal agreements, thereby lowering the barrier to entry for developers and fostering a collaborative ecosystem.2 These principles of stability and openness directly inform the design of the on-disk format. Because the ABI is stable, the physical layout of the plugin on a storage device can be a flexible convention—a "bundle"—rather than a rigid, monolithic binary file.
+
+1.2 The Architectural Imperative for a Bundle Structure
+
+CLAP's use of a directory-based bundle (a folder with a .clap suffix) is a deliberate architectural decision driven by the need for performance and stability, particularly during host startup and plugin scanning.1 A primary design goal of CLAP is to enable "lightning-fast metadata retrieval," allowing a host application to read essential information about a plugin—such as its name, vendor, version, and features—without having to load its executable code into memory.1
+This is a significant departure from legacy plugin scanning methods, which often required loading the entire plugin binary to query its identity. That process is not only slow but also a notorious source of instability, as a single faulty plugin could crash the entire host during its scan. CLAP solves this by decoupling the plugin's metadata from its executable code. The architectural solution is a self-contained directory that packages these components together: a plain-text manifest file for the metadata and a compiled shared library for the executable logic. The desire for fast, safe, and robust plugin scanning is the direct cause for the existence of this manifest-and-bundle architecture.
+
+1.3 Distinguishing Bundle Structure from Installation Path
+
+It is essential to differentiate between the internal structure of a .clap bundle and its location on the Linux filesystem. The CLAP standard is primarily concerned with the former: the required layout of files and directories inside the .clap bundle that ensures a host can correctly parse it.
+The process of locating these bundles is the responsibility of the host application. Hosts typically scan a set of standard, predefined directories, such as ~/.clap and /usr/lib/clap, as well as any custom paths specified by the user.4 Tools like
+clap-info also use these standard locations to discover installed plugins.5 While some forum discussions have noted that CLAP allows for "arbitrary install paths" 6, this refers to the user's or developer's freedom to place the
+.clap bundle in various locations, which the host can then be configured to find. This report focuses exclusively on the internal anatomy of the bundle itself—the definitive structure that constitutes a valid plugin once a host has located it.
+
+Part 2: The Anatomy of a Linux .clap Bundle
+
+
+2.1 The .clap Directory: The Top-Level Container
+
+On Linux, as on other operating systems, a CLAP plugin is formally defined as a directory whose name ends with the .clap suffix. This directory serves as the root container for all files related to the plugin, including its metadata manifest and its compiled binary code. The .clap extension is the primary discovery mechanism; when a host scans the filesystem for plugins, it specifically looks for directories with this suffix.5
+
+2.2 Minimal Valid Bundle Hierarchy (Linux/x86_64)
+
+For a CLAP plugin to be considered valid and loadable by a host on a standard 64-bit Linux system, it must adhere to a specific hierarchical structure. The following tree diagram represents the minimal required layout:
+
+
+
+MyAwesomePlugin.clap/
+├── clap-entry.json
+└── x86_64-linux/
+    └── MyAwesomePlugin.so
+
+
+The components of this minimal structure are:
+MyAwesomePlugin.clap/: The root directory of the bundle. Its name should be descriptive and must end with .clap.
+clap-entry.json: A mandatory JSON file located at the root of the bundle. This file serves as the metadata manifest, providing the host with all necessary information about the plugin.
+x86_64-linux/: A mandatory subdirectory whose name specifies the target architecture and operating system. For 64-bit Linux systems, this is x86_64-linux.
+MyAwesomePlugin.so: The compiled shared library containing the plugin's executable code and its entry point. This file must be located inside the architecture-specific subdirectory.
+
+2.3 The Architecture-Specific Subdirectory (x86_64-linux)
+
+The requirement of an architecture-specific subdirectory is a crucial design feature that enables the creation of "fat" or multi-architecture bundles. This structure allows a single .clap bundle to contain binaries for multiple platforms and architectures. For instance, a developer could distribute a single MyPlugin.clap file containing subdirectories for x86_64-linux, aarch64-linux, and even x86_64-windows, allowing the same bundle to function across different systems.
+When a host running on a 64-bit Linux machine scans this bundle, it first reads the clap-entry.json manifest. It then uses its knowledge of its own architecture (x86_64-linux) to deterministically locate and load the correct shared library from the corresponding subdirectory. This approach, similar to the one used by the VST3 format, is robust and extensible. It establishes a tight and necessary link between the entry path defined in the manifest and the physical file structure, which is a key point of validation for any host.
+
+Part 3: The clap-entry.json Manifest: The Bundle's Blueprint
+
+
+3.1 Confirmation and Role of clap-entry.json
+
+The primary metadata file for a CLAP bundle is definitively named clap-entry.json. While the official CLAP specification focuses on the C ABI, the clap-entry.json file has become the de facto standard, established and relied upon by the core CLAP ecosystem tools. Frameworks like nih-plug programmatically generate this file when bundling plugins 7, and official utilities like
+clap-validator and clap-info are built to parse it.5
+This file acts as the "table of contents" or blueprint for the bundle. It provides the host with all the critical metadata required to display the plugin in a list, categorize it, and ultimately load its binary for execution. This includes the plugin's name, version, unique identifier, and, most importantly, the path to its entry point library.
+
+3.2 Definitive Schema Breakdown
+
+To create a valid CLAP bundle, developers must construct a clap-entry.json file that conforms to a specific schema. The following table provides an authoritative breakdown of the keys, their data types, their mandatory or optional status, and their purpose. This information codifies the convention established by the reference tooling, filling a documentation gap and providing a single source of truth for developers.
+Key Name
+Data Type
+Status
+Description and Purpose
+clap_version
+String
+Mandatory
+The version of the CLAP ABI the plugin was compiled against (e.g., "1.2.0"). This string must be a valid version, allowing the host to perform a quick check for fundamental compatibility.
+entry
+String
+Mandatory
+The relative path to the shared library (.so) from the root of the .clap bundle. This path must include the architecture-specific subdirectory (e.g., "x86_64-linux/MyPlugin.so").
+name
+String
+Mandatory
+The human-readable name of the plugin bundle. This is the primary name displayed to the user in the host's plugin list.
+version
+String
+Mandatory
+The version of the plugin itself (e.g., "1.0.0"). This is distinct from clap_version and is used for display and version management.
+id
+String
+Mandatory
+A globally unique identifier for the plugin bundle, conventionally in reverse-DNS format (e.g., "com.mycompany.myplugin"). Hosts use this ID to uniquely identify the plugin, even if the filename or display name changes.
+description
+String
+Optional
+A short, human-readable description of the plugin's function. This can be displayed by the host as a tooltip or in a plugin manager.
+vendor
+String
+Optional
+The name of the company or individual developer who created the plugin.
+url
+String
+Optional
+A URL pointing to the plugin's product page or the vendor's main website.
+manual
+String
+Optional
+A URL pointing to the plugin's user manual or documentation.
+support
+String
+Optional
+A URL pointing to the vendor's support page, forum, or contact information.
+features
+Array of Strings
+Optional
+An array of standardized feature strings that describe the plugin's capabilities (e.g., "instrument", "audio-effect", "stereo"). This helps hosts categorize plugins without loading them. Standard features are defined in the CLAP header clap/plugin-features.h.
+
+
+3.3 Minimal Working Example: clap-entry.json
+
+The following is a complete, annotated example of a clap-entry.json file for a simple gain plugin. This can be used as a template for new projects.
+
+JSON
+
+
+{
+  "clap_version": "1.2.0",
+  "entry": "x86_64-linux/SimpleGain.so",
+  "name": "Simple Gain",
+  "version": "1.0.1",
+  "id": "com.example.simplegain",
+  "description": "A basic audio gain utility.",
+  "vendor": "My Awesome Plugins",
+  "url": "https://example.com/plugins/simplegain",
+  "features": [
+    "audio-effect",
+    "utility",
+    "stereo"
+  ]
+}
+
+
+clap_version: Declares that this plugin is built against CLAP ABI version 1.2.0.
+entry: Instructs the host to find the executable binary at the path x86_64-linux/SimpleGain.so relative to the bundle root.
+name: The plugin will appear as "Simple Gain" in the DAW.
+version: The specific version of this plugin is 1.0.1.
+id: The host will internally track this plugin using the unique ID "com.example.simplegain".
+features: Informs the host that this plugin is a stereo audio effect, likely for utility purposes, helping it appear in the correct categories.
+
+Part 4: The Entry Point: The Compiled Shared Library (.so)
+
+
+4.1 Location and Naming Convention
+
+The compiled shared library, which has an .so extension on Linux, is the heart of the plugin, containing all its digital signal processing (DSP) and user interface logic. As defined by the bundle structure, this file must be placed inside the appropriate architecture-specific subdirectory (e.g., x86_64-linux/).
+The path specified in the entry key of the clap-entry.json manifest must correspond exactly to the relative path of this shared library. Any mismatch between the manifest's entry path and the actual location of the .so file is a common and immediate cause of plugin loading failures. This explicit pathing mechanism is more robust than relying on simple naming conventions, as it gives the developer full control over the binary's name and location within the bundle, but it also places the responsibility on the developer to ensure the manifest and file structure remain synchronized.
+
+4.2 The clap_entry Symbol: The Gateway to the Plugin
+
+For a host to communicate with the plugin, the shared library must export a single, well-defined symbol: clap_entry.11 The precise signature for this symbol is defined in the official
+entry.h header file.12 Technically,
+clap_entry is a pointer to a const clap_plugin_entry_t struct. After the host loads the .so file into memory via dlopen(), it uses dlsym() to get the address of this clap_entry symbol. The clap_plugin_entry_t struct itself contains function pointers for the plugin's primary lifecycle functions: init(), deinit(), and get_factory(), the last of which is used to access the plugin's various factories (e.g., for creating plugin instances).
+A critical best practice, emphasized in the CLAP community, is to export only the clap_entry symbol from the shared library.11 This practice is vital for preventing symbol clashes. If a plugin and its statically linked dependencies (such as the Qt framework, which is known to cause issues on macOS 11) export functions with common names (e.g.,
+create_window), they can conflict with symbols exported by the host or other loaded plugins. Such conflicts lead to unpredictable behavior, memory corruption, and crashes—a significant source of instability that CLAP's design aims to mitigate. To adhere to this, developers should use compiler and linker flags (such as -fvisibility=hidden for GCC/Clang, combined with __attribute__((visibility("default"))) on the clap_entry definition) to strictly control symbol visibility and produce a clean, non-polluting shared library.
+
+Part 5: Practical Implementation: Assembling and Validating a CLAP Bundle
+
+
+5.1 Pre-requisites
+
+Before manually assembling a bundle, a developer must have the following components ready:
+A compiled shared library (e.g., MyPlugin.so) that correctly implements the CLAP ABI and exports the clap_entry symbol.
+A standard text editor or command-line tool to create the clap-entry.json file.
+The official clap-validator tool, which can be compiled from its source repository.10
+
+5.2 Step-by-Step Manual Assembly using Shell Commands
+
+The following sequence of shell commands demonstrates how to manually construct a valid .clap bundle from a pre-compiled .so file. This process is instructive for understanding the required structure.
+
+Bash
+
+
+# Step 1: Start with the compiled plugin library in the current directory.
+# For this example, the file is named MyPlugin.so.
+# $ ls
+# MyPlugin.so
+
+# Step 2: Create the main bundle directory with the.clap suffix.
+mkdir MyPlugin.clap
+
+# Step 3: Create the mandatory architecture-specific subdirectory.
+mkdir MyPlugin.clap/x86_64-linux
+
+# Step 4: Move the shared library into its correct location within the bundle.
+mv MyPlugin.so MyPlugin.clap/x86_64-linux/
+
+# Step 5: Create the clap-entry.json manifest file at the root of the bundle.
+# Using a 'here document' allows for easy copy-pasting of the JSON content.
+cat > MyPlugin.clap/clap-entry.json << EOL
+{
+  "clap_version": "1.2.0",
+  "entry": "x86_64-linux/MyPlugin.so",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "id": "com.mycompany.myplugin",
+  "description": "A manually assembled CLAP plugin.",
+  "vendor": "My Company",
+  "features": [
+    "audio-effect",
+    "stereo"
+  ]
+}
+EOL
+
+# Step 6: Verify the final directory structure.
+# The 'tree' command provides a clear visualization.
+# $ tree MyPlugin.clap
+# MyPlugin.clap/
+# ├── clap-entry.json
+# └── x86_64-linux/
+#     └── MyPlugin.so
+#
+# 2 directories, 2 files
+
+
+
+5.3 Validation with clap-validator
+
+After assembling the bundle, the final and most important step is to verify its integrity using the official clap-validator tool.3 This utility provides an objective and authoritative confirmation that the bundle is correctly structured and its binary is loadable.
+
+Bash
+
+
+# Execute clap-validator, pointing it to the newly created.clap bundle.
+# The path to the validator binary may vary depending on where it was compiled.
+/path/to/clap-validator/target/release/clap-validator validate./MyPlugin.clap
+
+
+A successful run of clap-validator will produce output confirming that it could parse the manifest, locate and load the shared library, find the clap_entry symbol, and successfully initialize the plugin's factory. If there are any issues—such as a JSON syntax error, a missing file referenced in the entry key, a missing clap_entry symbol, or an ABI incompatibility—the validator will report specific, actionable errors. This feedback is invaluable for debugging and ensures that the plugin is viable before it is tested in a full-featured Digital Audio Workstation.
+
+Part 6: Conclusion: Principles for Robust CLAP Deployment on Linux
+
+
+6.1 Summary of Critical Components
+
+The analysis confirms that a valid and robust CLAP plugin bundle on Linux is built upon three fundamental pillars:
+A Correctly Named Root Directory: The entire plugin must be contained within a single directory whose name ends with the .clap suffix. This is the non-negotiable identifier for host discovery.
+A Well-Formed clap-entry.json Manifest: A valid JSON file named clap-entry.json must exist at the root of the bundle. It must contain all mandatory keys (clap_version, entry, name, version, id) with accurate information that reflects the bundle's contents.
+A Correctly Placed and Implemented Shared Library: The compiled .so binary must reside within an architecture-specific subdirectory (e.g., x86_64-linux). Crucially, this library should export only the clap_entry symbol to ensure maximum stability and prevent symbol conflicts with the host or other plugins.
+
+6.2 Final Recommendations for Developers
+
+While manually creating a bundle is an excellent educational exercise, for real-world production workflows, automation is key to preventing human error. Developers should leverage build systems like CMake or specialized tooling such as cargo-xtask-bundle provided by the nih-plug framework to generate the bundle structure and manifest programmatically.7 This ensures that the manifest always stays synchronized with the compiled binary and project metadata.
+Furthermore, integrating clap-validator should be considered a mandatory step in any Continuous Integration and Continuous Deployment (CI/CD) pipeline for CLAP plugin development. This tool serves as the ground truth for bundle validity and ABI conformance, catching structural and binary-level issues long before they reach end-users.10
+Ultimately, the CLAP bundle structure, with its clear separation of concerns—metadata from binary, and discovery from internal layout—embodies the standard's core principles. It provides a robust, flexible, and future-proof foundation for developing high-performance audio software on Linux and beyond.
+Works cited
+CLAP: The New CLever Audio Plug-in Format - InSync - Sweetwater, accessed July 25, 2025, https://www.sweetwater.com/insync/clap-the-new-clever-audio-plug-in-format/
+CLAP: The New Audio Plug-in Standard - U-he, accessed July 25, 2025, https://u-he.com/community/clap/
+free-audio/clap: Audio Plugin API - GitHub, accessed July 25, 2025, https://github.com/free-audio/clap
+SA_Plugins, clap/linux/(win) - LinuxMusicians, accessed July 25, 2025, https://linuxmusicians.com/viewtopic.php?t=26924
+free-audio/clap-info: A tool to show information about a ... - GitHub, accessed July 25, 2025, https://github.com/free-audio/clap-info
+CLAP question for Devs - Image-Line Forums - FL Studio, accessed July 25, 2025, https://forum.image-line.com/viewtopic.php?t=281101
+Develop your own shiny VST and test it locally, accessed July 25, 2025, https://enphnt.github.io/blog/vst-plugins-rust/
+thought i buit the plugins but i can only find "gain.vst3" and "gain.clap" · Issue #156 · robbert-vdh/nih-plug - GitHub, accessed July 25, 2025, https://github.com/robbert-vdh/nih-plug/issues/156
+nih_plug - Rust, accessed July 25, 2025, https://nih-plug.robbertvanderhelm.nl/
+An automatic CLAP validation and testing tool - GitHub, accessed July 25, 2025, https://github.com/free-audio/clap-validator
+free-audio/clap-plugins - GitHub, accessed July 25, 2025, https://github.com/free-audio/clap-plugins
+clap/include/clap/entry.h at main · free-audio/clap · GitHub, accessed July 25, 2025, https://github.com/free-audio/clap/blob/main/include/clap/entry.h
+clap/include/clap/clap.h at main · free-audio/clap · GitHub, accessed July 25, 2025, https://github.com/free-audio/clap/blob/main/include/clap/clap.h
+
+
 # **Development Guide for a Linux CLAP Plugin with Advanced Binaural Audio Features in Rust**
 
 This document provides a comprehensive guide for developing a CLAP (CLever Audio Plug-in) for the Linux platform, incorporating a Binaural Convolution Engine, direct SOFA HRTF/BRIR file loading, speaker angle selection, and headphone parametric equalization. The specified technology stack includes Rust, the nih-plug framework, libmysofa for SOFA file handling, RustFFT for Fourier transforms, and rubato for sample rate conversion.

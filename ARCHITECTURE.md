@@ -4,9 +4,11 @@ This document provides an overview of the Open Headstage plugin architecture, in
 
 ## 1. Overview
 
-Open Headstage is an open-source binaural speaker simulation plugin. Its primary goal is to recreate the experience of listening to stereo audio through physical speakers in a defined acoustic space, but over headphones. It aims to be a high-quality, flexible tool, initially targeting Linux-based audio professionals and enthusiasts.
+Open Headstage is an open-source, multiplatform binaural speaker simulation application. Its primary goal is to provide a high-quality, flexible tool for experiencing stereo audio over headphones as if listening to physical speakers in a well-defined acoustic space.
 
-The plugin processes stereo audio input, applies binaural spatialization using Head-Related Transfer Functions (HRTFs), and optionally applies headphone equalization.
+The project is developed as a **standalone application first**, targeting Linux, Windows, and macOS. This standalone version serves as the primary platform for development, debugging, and use. In the future, the core logic is planned to be bundled as a **CLAP plugin** for use in digital audio workstations (DAWs).
+
+The application processes stereo audio input, applies binaural spatialization using Head-Related Transfer Functions (HRTFs), and optionally applies headphone equalization.
 
 ## 2. Tech Stack
 

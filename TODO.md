@@ -9,6 +9,27 @@ This file tracks the development tasks for the Open Headstage project.
 **NOTE:** Tasks marked as complete (`[x]`) are functionally integrated but may require further verification and hardening as the project evolves.
 
 ---
+## Current Priority
+
+- [ ] **[BUILD-4] Diagnose DAW Plugin Detection Failure:**
+  - **Description:** With a stable standalone binary now working, resume the diagnostic protocol to determine why the CLAP plugin is not being detected by hosts like Carla and Reaper.
+  - **Priority:** Highest.
+  - **Sub-tasks:**
+    - [ ] Systematically follow the steps in `docs/research/Diagnostic Protocol for CLAP on LINUX.md`.
+    - [ ] Verify dynamic library dependencies using `ldd`.
+    - [ ] Investigate host-specific logging and caching.
+
+- [x] **[BUILD-3] Implement Standalone Executable for Debugging:**
+  - **Description:** Configure the project to build a standalone executable for Linux. This will allow for easier debugging of the GUI and core logic outside of a DAW.
+  - **Priority:** Highest. This is a critical step to unblock the DAW detection issue.
+  - **Sub-tasks:**
+    - [x] Add the `standalone` feature to the `nih_plug` dependency in `Cargo.toml`.
+    - [x] Add the necessary `nih_export_standalone!` macro to `src/main.rs`.
+    - [x] Build and run the standalone binary to verify it launches.
+    - [x] Debug and fix `GuiContext` warnings related to incorrect parameter setting.
+  - **Status:** DONE
+
+---
 ## Phase 1: Core Functionality & Integration (Complete)
 
 - [x] **Core Infrastructure:** Basic parameter handling.
@@ -50,6 +71,10 @@ This file tracks the development tasks for the Open Headstage project.
 
 - [x] **[BUILD-1] Verify Project Compilation:**
   - **Description:** After significant changes to licensing and dependencies (disabling VST3), ensure the project compiles cleanly on the main branch.
+  - **Status:** DONE
+
+- [x] **[BUILD-2] Investigate `clap-validator` recursive call warning:**
+  - **Description:** The `clap-validator` tool reports a warning: `The plugin recursively called 'clap_host::on_main_thread()'. Aborted after ten iterations.`. Investigate the cause of this warning and resolve it.
   - **Status:** DONE
 
 - [x] **[DSP-ADV] Implement Multiple Filter Types:**
@@ -95,7 +120,7 @@ This file tracks the development tasks for the Open Headstage project.
 - [ ] **[UI-POLISH] Implement Educational Tooltips & Guides:**
   - **Description:** Enhance the UI with educational components to make it accessible to a wider audience.
   - **Sub-tasks:**
-    - [ ] Create educational tooltips or an info panel that explains audio concepts (e.g., phase, latency).
+    - [ ] Create an educational tooltips or an info panel that explains audio concepts (e.g., phase, latency).
     - [ ] The panel should include a comparison table for filter types (Latency, CPU Usage, Phase Response, Use Case).
 - [ ] **[META] Phase Review:** Document key decisions and lessons learned in `BUGS.md`.
 
@@ -116,6 +141,16 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] Develop a robust method for receiving and smoothing tracking data.
     - [ ] Extend the convolution engine to apply HRTF changes with minimal audio artifacts.
   - **Reference:** `docs/research/Dynamic Head Tracking Audio Feasibility.md`
+
+## Reminders, Ideas, & Lessons Learned
+
+*   **Lesson (`nih-plug` UI):** The `nih-plug-egui` widgets like `ParamSlider` are "smart" and automatically handle the `begin_set_parameter()` and `end_set_parameter()` calls when a user interacts with them. Do not wrap them manually. These calls are only needed when setting parameter values programmatically, for instance when applying a preset.
+*   **Lesson (Rust Syntax):** To silence an "unused variable" warning, prefix the variable name with an underscore (e.g., `_async_executor`). This is a direct signal to the compiler that the variable is intentionally unused.
+*   **Architectural Pattern (`nih-plug` Threading):** To avoid `clap-validator` warnings about recursive `on_main_thread()` calls, do not trigger background tasks directly from the GUI closure. The correct pattern is to use a channel to send a task message from the GUI thread to the plugin's `process()` method. The `process()` method, which has access to the `ProcessContext`, can then safely execute the background task without causing recursion.
+*   **Future Refactoring Idea (Code Quality):** In `src/lib.rs`, the `StereoParametricEQ` is initialized with a hardcoded sample rate of `44100.0`. This should be refactored to use the `current_sample_rate` variable, which is dynamically updated by the host in the `initialize()` method. This will make the EQ more robust and adaptable to different host environments.
+*   **Operational Reminder (Plugin Validation):** The `cargo xtask bundle` command can fail silently. The most reliable validation workflow is: 1. `cargo build --release`. 2. Manually create the `.clap` directory. 3. Manually copy the `.so` file into the bundle. 4. Run `clap-validator` directly on the `.so` file inside the bundle.
+*   **Lesson (Code Hygiene):** When refactoring, it's crucial to remove all remnants of the old approach. The `ParamChange` enum and its related channel logic were leftovers from a previous implementation that cluttered the code and created misleading compiler warnings. A clean refactor removes the old code entirely.
+*   **Operational Reminder (Tooling):** The `clap-validator` is a critical tool but is not in the system's `PATH` by default. For consistent development, its location should be documented, or it should be installed in a standard location.
 
 ## Completed Tasks
 

@@ -14,10 +14,12 @@
 
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
-use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
+use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use parking_lot::{Mutex, RwLock};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use strum::IntoEnumIterator;
 
 // Make sure our modules are declared
 mod autoeq_parser;
@@ -31,14 +33,12 @@ use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
 use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use egui_file_dialog::FileDialog;
-use parking_lot::RwLock;
-use strum::IntoEnumIterator;
 
 const NUM_EQ_BANDS: usize = 10;
 
 pub enum Task {
     LoadSofa(PathBuf),
-    LoadAutoEq(PathBuf, Sender<Vec<BandSetting>>),
+    LoadAutoEq(PathBuf, Arc<Mutex<Option<Vec<BandSetting>>>>),
 }
 
 #[derive(Params)]
@@ -196,18 +196,22 @@ enum FileDialogRequest {
 struct EditorState {
     file_dialog: FileDialog,
     file_dialog_request: Option<FileDialogRequest>,
-    eq_band_receiver: Receiver<Vec<BandSetting>>,
-    eq_band_sender: Sender<Vec<BandSetting>>,
+    auto_eq_result: Arc<Mutex<Option<Vec<BandSetting>>>>,
+    loaded_eq_settings: Option<Vec<BandSetting>>,
+    gui_task_sender: Sender<Task>,
 }
 
-impl Default for EditorState {
-    fn default() -> Self {
-        let (sender, receiver) = crossbeam_channel::unbounded();
+impl EditorState {
+    fn new(
+        gui_task_sender: Sender<Task>,
+        auto_eq_result: Arc<Mutex<Option<Vec<BandSetting>>>>,
+    ) -> Self {
         Self {
             file_dialog: FileDialog::new(),
             file_dialog_request: None,
-            eq_band_receiver: receiver,
-            eq_band_sender: sender,
+            auto_eq_result,
+            loaded_eq_settings: None,
+            gui_task_sender,
         }
     }
 }
@@ -219,10 +223,14 @@ pub struct OpenHeadstagePlugin {
     parametric_eq: StereoParametricEQ,
     current_sample_rate: f32,
     has_logged_processing_start: AtomicBool,
+    gui_task_sender: Sender<Task>,
+    gui_task_receiver: Receiver<Task>,
+    auto_eq_result: Arc<Mutex<Option<Vec<BandSetting>>>>,
 }
 
 impl Default for OpenHeadstagePlugin {
     fn default() -> Self {
+        let (gui_task_sender, gui_task_receiver) = crossbeam_channel::unbounded();
         Self {
             params: Arc::new(OpenHeadstageParams::default()),
             convolution_engine: ConvolutionEngine::new(),
@@ -230,6 +238,9 @@ impl Default for OpenHeadstagePlugin {
             parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, 44100.0),
             current_sample_rate: 44100.0,
             has_logged_processing_start: AtomicBool::new(false),
+            gui_task_sender,
+            gui_task_receiver,
+            auto_eq_result: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -257,12 +268,13 @@ impl Plugin for OpenHeadstagePlugin {
         self.params.clone()
     }
 
-    fn editor(&mut self, async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
+        let editor_state = EditorState::new(self.gui_task_sender.clone(), self.auto_eq_result.clone());
 
         create_egui_editor(
             self.params.editor_state.clone(),
-            EditorState::default(),
+            editor_state,
             |_, _| {},
             move |egui_ctx, setter, state| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
@@ -335,6 +347,44 @@ impl Plugin for OpenHeadstagePlugin {
                         state.file_dialog.pick_file();
                     }
 
+                    if let Some(bands) = &state.loaded_eq_settings {
+                        if ui.button("Apply Loaded EQ").clicked() {
+                            // When applying a preset, we want to set all of these parameters in a single gesture
+                            setter.begin_set_parameter(&params.eq_enable);
+                            for band_param in params.eq_bands.iter() {
+                                setter.begin_set_parameter(&band_param.enabled);
+                                setter.begin_set_parameter(&band_param.filter_type);
+                                setter.begin_set_parameter(&band_param.frequency);
+                                setter.begin_set_parameter(&band_param.q);
+                                setter.begin_set_parameter(&band_param.gain);
+                            }
+
+                            setter.set_parameter(&params.eq_enable, true);
+                            for (i, band_param) in params.eq_bands.iter().enumerate() {
+                                if let Some(band_setting) = bands.get(i) {
+                                    setter.set_parameter(&band_param.enabled, true);
+                                    setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
+                                    setter.set_parameter(&band_param.frequency, band_setting.frequency);
+                                    setter.set_parameter(&band_param.q, band_setting.q);
+                                    setter.set_parameter(&band_param.gain, band_setting.gain);
+                                } else {
+                                    setter.set_parameter(&band_param.enabled, false);
+                                }
+                            }
+                            
+                            for band_param in params.eq_bands.iter() {
+                                setter.end_set_parameter(&band_param.gain);
+                                setter.end_set_parameter(&band_param.q);
+                                setter.end_set_parameter(&band_param.frequency);
+                                setter.end_set_parameter(&band_param.filter_type);
+                                setter.end_set_parameter(&band_param.enabled);
+                            }
+                            setter.end_set_parameter(&params.eq_enable);
+
+                            state.loaded_eq_settings = None;
+                        }
+                    }
+
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.vertical(|ui| {
                             for (i, band) in params.eq_bands.iter().enumerate() {
@@ -347,28 +397,23 @@ impl Plugin for OpenHeadstagePlugin {
                                         );
 
                                         let mut selected_type = band.filter_type.value();
+                                        let old_selected_type = selected_type;
                                         egui::ComboBox::new(format!("filter_type_{}", i), "")
                                             .selected_text(format!("{:?}", selected_type))
                                             .show_ui(ui, |ui| {
                                                 for filter_type in FilterType::iter() {
-                                                    if ui
-                                                        .selectable_value(
-                                                            &mut selected_type,
-                                                            filter_type,
-                                                            format!("{:?}", filter_type),
-                                                        )
-                                                        .clicked()
-                                                    {
-                                                        setter
-                                                            .begin_set_parameter(&band.filter_type);
-                                                        setter.set_parameter(
-                                                            &band.filter_type,
-                                                            filter_type,
-                                                        );
-                                                        setter.end_set_parameter(&band.filter_type);
-                                                    }
+                                                    ui.selectable_value(
+                                                        &mut selected_type,
+                                                        filter_type,
+                                                        format!("{:?}", filter_type),
+                                                    );
                                                 }
                                             });
+                                        if selected_type != old_selected_type {
+                                            setter.begin_set_parameter(&band.filter_type);
+                                            setter.set_parameter(&band.filter_type, selected_type);
+                                            setter.end_set_parameter(&band.filter_type);
+                                        }
                                     });
 
                                     ui.horizontal(|ui| {
@@ -395,49 +440,22 @@ impl Plugin for OpenHeadstagePlugin {
                         Some(FileDialogRequest::Sofa) => {
                             let path_str = path.to_string_lossy().to_string();
                             *params.sofa_file_path.write() = path_str;
-                            async_executor.execute_gui(Task::LoadSofa(path));
+                            state.gui_task_sender.send(Task::LoadSofa(path)).unwrap();
                         }
                         Some(FileDialogRequest::AutoEq) => {
-                            let sender = state.eq_band_sender.clone();
-                            async_executor.execute_gui(Task::LoadAutoEq(path, sender));
+                            let result_mutex = state.auto_eq_result.clone();
+                            state
+                                .gui_task_sender
+                                .send(Task::LoadAutoEq(path, result_mutex))
+                                .unwrap();
                         }
                         None => nih_log!("File dialog picked but no request was made."),
                     }
                     state.file_dialog_request = None;
                 }
 
-                if let Ok(bands) = state.eq_band_receiver.try_recv() {
-                    setter.begin_set_parameter(&params.eq_enable);
-                    setter.set_parameter(&params.eq_enable, true);
-                    setter.end_set_parameter(&params.eq_enable);
-
-                    for (i, band_param) in params.eq_bands.iter().enumerate() {
-                        if let Some(band_setting) = bands.get(i) {
-                            setter.begin_set_parameter(&band_param.enabled);
-                            setter.set_parameter(&band_param.enabled, true);
-                            setter.end_set_parameter(&band_param.enabled);
-
-                            setter.begin_set_parameter(&band_param.filter_type);
-                            setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
-                            setter.end_set_parameter(&band_param.filter_type);
-
-                            setter.begin_set_parameter(&band_param.frequency);
-                            setter.set_parameter(&band_param.frequency, band_setting.frequency);
-                            setter.end_set_parameter(&band_param.frequency);
-
-                            setter.begin_set_parameter(&band_param.q);
-                            setter.set_parameter(&band_param.q, band_setting.q);
-                            setter.end_set_parameter(&band_param.q);
-
-                            setter.begin_set_parameter(&band_param.gain);
-                            setter.set_parameter(&band_param.gain, band_setting.gain);
-                            setter.end_set_parameter(&band_param.gain);
-                        } else {
-                            setter.begin_set_parameter(&band_param.enabled);
-                            setter.set_parameter(&band_param.enabled, false);
-                            setter.end_set_parameter(&band_param.enabled);
-                        }
-                    }
+                if let Some(bands) = state.auto_eq_result.lock().take() {
+                    state.loaded_eq_settings = Some(bands);
                 }
             },
         )
@@ -461,7 +479,7 @@ impl Plugin for OpenHeadstagePlugin {
                     }
                 }
             }
-            Task::LoadAutoEq(path, sender) => {
+            Task::LoadAutoEq(path, result_mutex) => {
                 nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", path);
                 match autoeq_parser::parse_autoeq_csv(&path) {
                     Ok(parsed_bands) => {
@@ -470,12 +488,7 @@ impl Plugin for OpenHeadstagePlugin {
                             parsed_bands.len(),
                             path
                         );
-                        if let Err(e) = sender.send(parsed_bands) {
-                            nih_log!(
-                                "BACKGROUND: Failed to send parsed EQ bands to GUI thread: {:?}",
-                                e
-                            );
-                        }
+                        *result_mutex.lock() = Some(parsed_bands);
                     }
                     Err(e) => {
                         nih_log!(
@@ -525,8 +538,12 @@ impl Plugin for OpenHeadstagePlugin {
         &mut self,
         buffer: &mut Buffer,
         _aux: &mut AuxiliaryBuffers,
-        _context: &mut impl ProcessContext<Self>,
+        context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
+        if let Ok(task) = self.gui_task_receiver.try_recv() {
+            context.execute_background(task);
+        }
+
         if !self
             .has_logged_processing_start
             .swap(true, Ordering::Relaxed)

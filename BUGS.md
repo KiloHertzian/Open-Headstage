@@ -10,6 +10,39 @@ This document tracks known bugs, limitations, and the overall development status
 
 ## Resolved Issues & Lessons Learned
 
+### `nih-plug` GUI Parameter Setting (Resolved)
+
+*   **Original Problem:** After successfully building a standalone executable, the application would log repeated warnings like `GuiContext::set_parameter() was called for parameter '...' without a preceding begin_set_parameter() call` whenever a UI control was used.
+*   **Root Cause Analysis:** The issue stemmed from a deep misunderstanding of how `nih-plug`'s `egui` widgets interact with the `ParamSetter` context.
+    1.  **Initial State:** The code did not wrap any UI controls with `begin_set_parameter()` or `end_set_parameter()`, causing the initial warnings.
+    2.  **Incorrect Fix (Over-correction):** The first attempt to fix this involved wrapping every `widgets::ParamSlider` and `egui::ComboBox` with `begin/end` calls. This was incorrect and led to a new set of warnings: `begin_set_parameter() was called twice`.
+    3.  **The Revelation (Reading the Source):** A direct inspection of the `nih_plug_egui/src/widgets/param_slider.rs` source code revealed the truth: the built-in widgets (`ParamSlider`, etc.) are "smart" and manage the `begin/end` calls **automatically** when the user interacts with them. My manual wrapping was conflicting with this internal behavior.
+*   **Resolution:** The final, correct solution involved two key insights:
+    1.  **Trust the Widgets:** All manual `begin/end` wrappers were removed from the `ParamSlider` and `ComboBox` widgets. They are designed to be used directly.
+    2.  **Wrap Manual Calls:** The warnings were actually originating from the `Apply Loaded EQ` button, which sets parameter values programmatically. The fix was to wrap this entire block of manual `setter.set_parameter(...)` calls in a single, large `begin/end` transaction for all affected parameters.
+*   **Lesson Learned:**
+    1.  **The `nih-plug` Widgets Are Smart:** The widgets provided by `nih_plug_egui` are not simple UI elements; they are deeply integrated with the parameter system. They handle the gestures of beginning, changing, and ending a parameter adjustment automatically. Do not manually wrap them.
+    2.  **Differentiate UI-driven vs. Programmatic Changes:** The `begin/end` calls are necessary only when you are setting a parameter's value directly in your own code (e.g., applying a preset), not when a user is interacting with a standard `nih-plug` widget.
+    3.  **When in Doubt, Read the Source:** The cycle of conflicting warnings was a strong signal that my mental model of the framework was wrong. The definitive answer was not in the examples or high-level docs, but in the implementation of the widget itself.
+
+### `clap-validator` Recursion Warning & Background Task Architecture (Resolved)
+
+*   **Original Problem:** The `clap-validator` tool reported a persistent warning: `The plugin recursively called 'clap_host::on_main_thread()'. Aborted after ten iterations.` This indicated an incorrect implementation of background tasks that, while not a crash, prevented the plugin from loading in some hosts.
+*   **Root Cause Analysis:** The issue stemmed from a misunderstanding of the `nih-plug` threading model for background tasks initiated from the GUI.
+    1.  An initial attempt assumed the GUI's `AsyncExecutor` could directly spawn background tasks. This was incorrect; the `create_sender()` method did not exist on that context.
+    2.  A second attempt used a `crossbeam_channel` to send a task from the GUI to the background thread, and another channel to send the result back to the GUI. This caused the recursion warning. The background task would send the result, the GUI would receive it and update its state, triggering a redraw. The validator interpreted this immediate, event-driven redraw as a recursive call originating from the main thread.
+*   **Resolution:** The architecture was refactored to follow the correct, unidirectional event flow and use shared state for results, breaking the recursive cycle.
+    1.  **GUI-to-Audio-Thread Communication:** A `crossbeam_channel::Sender<Task>` is held by the `EditorState` (the GUI). When the user clicks a button to start a task, the GUI sends a `Task` enum variant over this channel.
+    2.  **Audio-Thread-to-Background-Execution:** The main `OpenHeadstagePlugin` struct holds the `Receiver<Task>`. In its `process()` method (the real-time audio thread), it checks the receiver for new messages using `try_recv()`.
+    3.  **Safe Task Execution:** Upon receiving a `Task` message, the `process()` method uses its `ProcessContext` to safely execute the task on a background thread via `context.execute_background(task)`. This is the *only* correct way to initiate a background task from a GUI interaction.
+    4.  **Result Handling (Polling, not Pushing):** To return data (like parsed EQ settings) to the GUI without a direct callback, an `Arc<Mutex<Option<Vec<BandSetting>>>>` is used. This `Arc<Mutex<>>` is cloned and shared between the `EditorState` and the `Task` itself.
+        *   The `task_executor` (background thread) performs the work, locks the mutex, and places the result inside the `Option`.
+        *   The `editor` closure (GUI thread) polls this `Arc<Mutex<>>` on every redraw. It uses `lock().take()` to check for and retrieve the result. This polling mechanism decoupples the background task from the GUI redraw, breaking the recursion. The GUI pulls data when it's ready, rather than having the data pushed to it.
+*   **Lesson Learned:**
+    1.  **The `nih-plug` Threading Pattern is Strict:** The only sanctioned way to trigger a background task from a GUI action is: **GUI -> Audio Thread -> Background**. The GUI must send a message to the audio thread, and the audio thread must use its `ProcessContext` to launch the task. There are no shortcuts.
+    2.  **Avoid Direct Callbacks from Background to GUI:** Sending a message or using a direct callback from a background task to the GUI is an anti-pattern that can cause event loops. The `clap-validator` is sensitive to this and will correctly flag it as recursion.
+    3.  **Polling Shared State is the Safe Return Path:** For a background task to return data to the GUI, it should write the result to a shared, thread-safe container (like an `Arc<Mutex<>>`). The GUI should then poll this container during its redraw cycle to check for and retrieve the data. This decouples the threads and prevents the recursion warning.
+
 ### Rust 2024 Edition Upgrade with `bindgen` (Resolved)
 
 *   **Original Problem:** The upgrade to the Rust 2024 edition failed with compilation errors stating `extern blocks must be unsafe`. The errors originated from the FFI bindings file generated by the `bindgen` crate in `build.rs`.
@@ -102,6 +135,22 @@ This document tracks known bugs, limitations, and the overall development status
     1.  **`xtask` is not guaranteed:** The `cargo xtask` system is a convention, not a requirement. If it fails, it may be due to subtle configuration or versioning issues.
     2.  **Manual Bundling is a Viable Alternative:** The VST3 and CLAP formats are just specific directory structures. Understanding this allows for manual creation of the bundles, which is a robust fallback when the automated tooling fails.
     3.  **Isolate the Problem:** The `clap-validator` tool was critical in proving that the core plugin code was correct, which allowed me to focus on the VST3 packaging as the source of the problem.
+
+### CLAP Bundling Failure & Validation (Resolved)
+
+*   **Original Problem:** The `cargo xtask bundle` command, intended to create the `.clap` plugin bundle, was failing silently (exiting with code 0 but producing no output).
+*   **Resolution:**
+    1.  A review of internal documentation, specifically `docs/research/CLAP Plugin Development Documentation.md`, confirmed that `cargo xtask bundle` is the correct command but can be unreliable. The document also implies that manual bundling is a valid alternative.
+    2.  Following the lesson from the previous VST3 bundling failure, the `xtask` system was bypassed in favor of manual bundling.
+    3.  The `.clap` bundle was created by making a directory named `open-headstage.clap`.
+    4.  The compiled shared library (`libopen_headstage.so`) was copied into this directory.
+    5.  The `clap-validator` tool was then run. It initially failed because it was pointed at the `open-headstage.clap` directory.
+    6.  The final, successful validation was achieved by pointing the validator directly at the shared library *inside* the bundle: `clap-validator validate open-headstage.clap/libopen_headstage.so`.
+*   **Lesson Learned:**
+    1.  **Consult Internal Docs First:** The solution was hinted at in existing project documentation. Always search the `docs/` directory before starting external searches or trial-and-error debugging.
+    2.  **`xtask` can fail silently for CLAP too:** The unreliability of the `xtask` bundler is not specific to one format. Manual bundling is a consistent workaround.
+    3.  **Validator Targets the Library:** Plugin validators (`clap-validator`, etc.) operate on the compiled library file (`.so`, `.dll`), not the bundle directory that contains it.
+*   **Supporting Documentation:** `docs/research/CLAP Plugin Development Documentation.md`
 
 ### Architectural Misunderstanding of `nih-plug` Testing & Benchmarking (Resolved)
 

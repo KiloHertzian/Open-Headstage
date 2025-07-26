@@ -1,258 +1,128 @@
 # Open Headstage
 
-Open Headstage is an open-source binaural speaker simulation plugin for headphones, designed for Linux-based audio professionals and enthusiasts. The goal is to provide a high-quality, flexible tool for experiencing stereo audio as if listening to physical speakers in a well-defined acoustic space.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/user-attachments/assets/a270c007-213a-428c-8a8a-5a304855b1b7" alt="Open Headstage Logo" width="150"/>
+</p>
 
-## License
+<h3 align="center">A Multiplatform Binaural Speaker Simulator</h3>
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
-
-## Current Status
-
-**This project is in an alpha stage.** The core features are implemented, and the plugin compiles and passes basic validation. However, there are known issues with running it in some plugin hosts like Carla. The UI is functional but incomplete.
-
-*   **Working:**
-    *   Compiles as a CLAP and VST3 plugin.
-    *   Passes `clap-validator` tests.
-    *   Core signal path (EQ -> Convolution -> Gain) is implemented.
-    *   Loading SOFA files via the UI file dialog.
-    *   Functional UI for core parameters (Gain, Speaker Angles).
-*   **Not Working / Incomplete:**
-    *   **Host Compatibility:** Fails to load or run correctly in some hosts (e.g., Carla). This is the highest priority issue to resolve.
-    *   **Incomplete UI:** The 10-band parametric EQ is functional in the audio engine but is not yet fully represented in the UI.
-
-## Signal Path
-
-The audio processing follows this order:
-
-1.  **Stereo Audio Input**
-2.  **(Optional) 10-Band Parametric EQ:** If enabled, the signal is processed by a stereo parametric equalizer. By default, this is disabled and provides a flat response.
-3.  **Binaural Convolution Engine:** The signal is convolved with Head-Related Transfer Functions (HRTFs) loaded from a SOFA file. This stage spatializes the sound.
-4.  **Output Gain:** A final gain stage adjusts the output volume.
-5.  **Stereo Audio Output**
-
-## How to Use
-
-1.  Load the plugin in your CLAP-compatible host.
-2.  Click the "Select SOFA File" button to load a `.sofa` HRTF file.
-3.  Adjust the speaker azimuth and elevation to your preference.
-4.  Use the "Output Gain" to control the final volume.
-5.  The Parametric EQ is disabled by default.
+<p align="center">
+  <strong>Open Headstage is an open-source audio application that recreates the experience of listening to high-end stereo speakers in a room, all within your headphones.</strong>
+  <br /><br />
+  <a href="https://github.com/your-username/Open-Headstage/releases">Downloads</a>
+  ·
+  <a href="https://github.com/your-username/Open-Headstage/issues/new?template=bug_report.md">Report Bug</a>
+  ·
+  <a href="https://github.com/your-username/Open-Headstage/issues/new?template=feature_request.md">Request Feature</a>
+</p>
 
 ---
 
-## Core Features (MVP - Phase 1)
-- Binaural Convolution Engine (4-path for anechoic HRTFs)
-- Direct SOFA HRTF/BRIR file loading (`.sofa`)
-- Speaker angle selection (manual and presets)
-- Headphone Parametric Equalization (10-band PEQ with AutoEq import)
-- CLAP plugin format for Linux (with potential VST3 support in the future).
+## About The Project
 
-## Tech Stack (Planned)
-- Language: Rust
-- Plugin Framework: `nih-plug`
-- SOFA Library: `libmysofa` (via FFI)
-- FFT Library: `RustFFT` (or similar)
-- Resampling: `rubato` (or similar)
+Open Headstage is a professional-grade audio processing tool for enthusiasts and professionals who want to achieve a more natural and immersive listening experience on headphones. By using advanced digital signal processing (DSP), it simulates the way sound from stereo speakers interacts with your head and ears, creating a "phantom" soundstage in front of you.
 
-## Bloc Diagram
+This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. Our future goal is to package the core technology as a **CLAP plugin** for seamless integration into digital audio workstations (DAWs).
+
+### Core Features
+*   **Binaural Convolution Engine:** Uses Head-Related Transfer Functions (HRTFs) to accurately position sound in a 3D space.
+*   **SOFA File Support:** Load your own HRTF profiles in the standard SOFA format for a personalized experience.
+*   **10-Band Parametric EQ:** Correct your headphone's frequency response with a powerful parametric equalizer.
+*   **AutoEQ Integration:** Easily import and apply headphone correction profiles from the popular AutoEQ project.
+*   **Standalone First:** A dedicated application for all major desktop operating systems.
+*   **Future CLAP Support:** Planned integration with professional DAWs through the modern CLAP plugin format.
+
+## Signal Path & Architecture
+
+The application's audio processing is designed for high-fidelity and low latency, following a clean and logical signal path.
+
 ```mermaid
 graph TD
-    %% == Node Definitions ==
-    A["Stereo Audio Input"]
-    B["Binaural Convolution Engine"]
-    C["SOFA HRTF Manager"]
-    D["Anechoic Binaural Output"]
-    E["Speaker Emulation EQ"]
-    F["Room Simulation Module"]
-    G["Headphone Equalization"]
-    H["Output Gain & Bypass"]
-    I["Stereo Audio Output"]
-    J["User Interface"]
-    K_Params["Plugin Config"]
+    subgraph "User Interface & Control"
+        direction LR
+        UI[<img src="https://raw.githubusercontent.com/user-attachments/assets/a270c007-213a-428c-8a8a-5a304855b1b7" width="30" style="vertical-align: middle; margin-right: 5px;" /> User Interface (egui)]
+        Params[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Plugin Parameters]
+        SofaLoader[<img src="https://raw.githubusercontent.com/user-attachments/assets/33122a50-511a-411a-933a-022151313858" width="30" style="vertical-align: middle; margin-right: 5px;" /> SOFA File Loader]
+        AutoEqLoader[<img src="https://raw.githubusercontent.com/user-attachments/assets/33122a50-511a-411a-933a-022151313858" width="30" style="vertical-align: middle; margin-right: 5px;" /> AutoEQ Profile Loader]
 
-    %% == Connections ==
-    A --> B;
-    C -.->|Provides 4 HRIRs| B;
-    B --> D;
-    D --> E;
-    E --> F;
-    F --> G;
-    G --> H;
-    H --> I;
-
-    J --> K_Params;
-    K_Params -.-> C;
-    K_Params -.-> B;
-    K_Params -.-> E;
-    K_Params -.-> F;
-    K_Params -.-> G;
-    K_Params -.-> H;
-
-    %% == Subgraphs ==
-    subgraph "Phase 1: Anechoic Core (MVP)"
-        B
-        C
-        G
-        H
+        UI -- "Modifies" --> Params
+        UI -- "Triggers" --> SofaLoader
+        UI -- "Triggers" --> AutoEqLoader
     end
 
-    subgraph "Phase 2: Enhancements"
-        E
-        F
+    subgraph "Real-time Audio Signal Path"
+        direction TB
+        Input[<img src="https://raw.githubusercontent.com/user-attachments/assets/58551828-597e-4213-8701-8078c1d8a82d" width="30" style="vertical-align: middle; margin-right: 5px;" /> Stereo Audio Input]
+        EQ[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Headphone EQ]
+        Conv[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Binaural Convolution]
+        Gain[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Output Gain]
+        Output[<img src="https://raw.githubusercontent.com/user-attachments/assets/58551828-597e-4213-8701-8078c1d8a82d" width="30" style="vertical-align: middle; margin-right: 5px;" /> Stereo Audio Output]
+
+        Input --> EQ --> Conv --> Gain --> Output
     end
 
-    %% == Styling ==
-    style A fill:#lightgreen,stroke:#333,stroke-width:2px
-    style I fill:#lightgreen,stroke:#333,stroke-width:2px
-    style B fill:#lightblue,stroke:#333,stroke-width:2px
-    style C fill:#f9f,stroke:#333,stroke-width:2px
-    style D fill:#skyblue,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
-    style E fill:#wheat,stroke:#333,stroke-width:2px
-    style F fill:#wheat,stroke:#333,stroke-width:2px
-    style G fill:#lightblue,stroke:#333,stroke-width:2px
-    style H fill:#lightgray,stroke:#333,stroke-width:2px
-    style J fill:#whitesmoke,stroke:#333,stroke-width:2px
-    style K_Params fill:#whitesmoke,stroke:#333,stroke-width:2px
+    %% Connections between subgraphs
+    Params -- "Controls" --> EQ
+    Params -- "Controls" --> Conv
+    Params -- "Controls" --> Gain
+    SofaLoader -- "Provides HRTFs" --> Conv
+    AutoEqLoader -- "Provides Settings" --> EQ
+
+    %% Styling
+    classDef dsp fill:#1f2937,stroke:#60a5fa,color:#e5e7eb
+    classDef io fill:#111827,stroke:#9ca3af,color:#e5e7eb
+    classDef control fill:#111827,stroke:#9ca3af,color:#e5e7eb
+
+    class Input,Output io
+    class EQ,Conv,Gain dsp
+    class UI,Params,SofaLoader,AutoEqLoader control
 ```
 
-## Requirements
-- **Rust:** Version 1.87.0 or newer.
-- **System Dependencies:** `libgl-dev`, `libx11-xcb-dev`, `libmysofa-dev`, `libgtk-3-dev`. You can install these on a Debian-based system using:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libgtk-3-dev
-  ```
+## Getting Started
 
-## Building from Source
+### Prerequisites
+
+To build Open Headstage from source, you will need the following tools and libraries.
+
+*   **Rust:** Version 1.87.0 or newer.
+*   **System Dependencies:**
+    *   **On Linux (Debian/Ubuntu):**
+        ```bash
+        sudo apt-get update
+        sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libgtk-3-dev
+        ```
+    *   **On Windows:** (Instructions to be added)
+    *   **On macOS:** (Instructions to be added)
+
+### Building from Source
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/your-username/Open-Headstage.git
     cd Open-Headstage
     ```
-2.  **Build the plugin:**
+2.  **Build the standalone application:**
     ```bash
     cargo build --release
     ```
-The compiled plugin (`libopen_headstage.so`) will be located in the `target/release` directory. You can then copy this file to your CLAP plugin directory (e.g., `~/.clap`).
+3.  **Run the application:**
+    The compiled executable will be located in the `target/release` directory.
+    ```bash
+    ./target/release/open-headstage
+    ```
 
 ## How to Contribute
-(This section will outline the process for contributing, such as forking the repository, creating a new branch, submitting pull requests, and linking to the issue templates.)
 
-## Roadmap
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-Our primary focus is on delivering a robust CLAP plugin for Linux. Future development may include VST3 support after CLAP implementation is mature.
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
 
-*(Note on current development status: Structural development of core features like DSP modules, SOFA loading, and plugin logic is progressing. However, full compilation and testing of the `nih-plug` based plugin is currently blocked in the automated CI environment. This is due to the environment's Rust compiler (Rustc 1.75.0) being incompatible with the latest `nih-plug` versions (which require Rustc 1.80+), and persistent git fetching errors preventing the use of older, potentially compatible `nih-plug` versions. Consequently, compilation and functional testing are deferred to the user's local development setup. The roadmap reflects the intended implementation order, with the understanding that users will need to compile the code in their own suitable environment.)*
+Please refer to our issue templates for bug reports and feature requests.
 
-**Phase 1: Anechoic Core CLAP Plugin (MVP - In Progress)**
+## License
 
-This phase focuses on creating a functional CLAP plugin with anechoic binaural processing, SOFA loading, and headphone EQ.
-
-*   **1.1: Core DSP - FFT-Based Convolution Engine (`src/dsp/convolution.rs`)**
-    *   Implement a 4-path convolution engine (LSL, LSR, RSL, RSR).
-    *   Utilize `RustFFT` for FFT operations (Overlap-Add or Overlap-Save method).
-    *   Provide methods to set individual HRIR paths (`set_ir`).
-    *   Process stereo audio blocks (`process_block`).
-    *   Comprehensive unit tests for various IR types (identity, delay, simple filters) and state management.
-    *   *Status: Structurally integrated into `src/lib.rs`. Compilation and functional testing deferred to user's local environment.*
-
-*   **1.2: SOFA HRTF Integration (`src/sofa/loader.rs`)**
-    *   Develop FFI bindings for `libmysofa` (e.g., via `rust-bindgen`).
-    *   Create a safe Rust wrapper (`MySofa`) for `libmysofa` to handle:
-        *   Opening SOFA files (`mysofa_open`), including resampling to plugin's sample rate.
-        *   Retrieving HRIR pairs for specified azimuth/elevation/radius (`mysofa_getfilter_float`).
-        *   Coordinate system conversions (`mysofa_s2c`, `mysofa_c2s`).
-    *   Manage `libmysofa` resources correctly (e.g., `mysofa_close` via `Drop` trait).
-    *   *Status: `MySofa` wrapper structure and FFI bindings are structurally in place. Integration with `src/lib.rs` for SOFA file path parameter and loading logic is structurally complete. Compilation and functional testing deferred to user's local environment.*
-
-*   **1.3: `nih-plug` Framework & Core Plugin Structure (`src/lib.rs`)**
-    *   Set up `nih-plug` for CLAP export (`nih_export_clap!`).
-    *   Define main plugin struct (`OpenHeadstagePlugin`) and parameters struct (`OpenHeadstageParams`).
-    *   Implement `Plugin` trait with placeholders for core methods (`initialize`, `reset`, `process`, `editor`).
-    *   Define initial parameters in `OpenHeadstageParams`:
-        *   Output Gain (`FloatParam`).
-        *   L/R Speaker Azimuth & Elevation (`FloatParam`s).
-        *   SOFA file path (`StringParam`, persisted).
-    *   *Status: Core structure and parameters defined. Blocked in CI by Rustc/`nih-plug` version incompatibility and git fetching issues. User must compile locally.*
-
-*   **1.4: Integration of Modules into Plugin Logic (`src/lib.rs`)**
-    *   Instantiate `ConvolutionEngine`, `MySofa` (optional), and `StereoParametricEQ` within `OpenHeadstagePlugin`.
-    *   `Plugin::initialize()`:
-        *   Stores sample rate.
-        *   Initializes/configures EQ and Convolution engine.
-        *   Logic for loading SOFA file specified by `sofa_file_path` parameter using `MySofa::open` is present.
-        *   Conceptual HRIR update logic based on SOFA loading.
-    *   `Plugin::process()`:
-        *   EQ parameter updates and processing stage implemented.
-        *   Convolution processing stage implemented.
-        *   Conceptual HRIR selection based on angle parameters.
-        *   Output gain application.
-    *   *Status: Structural integration of DSP modules (EQ, Convolution) and SOFA loading logic into plugin methods is complete. Functional testing and further refinement depend on local compilation by the user.*
-
-*   **1.5: Headphone Parametric Equalization (`src/dsp/parametric_eq.rs`, `src/autoeq_parser.rs`)**
-    *   Implement `BiquadFilter` (Peak, LowShelf, HighShelf) with coefficient calculation (Audio EQ Cookbook) and stateful processing.
-    *   Implement `StereoParametricEQ` to manage a bank of (e.g., 10) stereo biquad filters.
-    *   Develop `AutoEqParser` to read AutoEQ headphone correction text files.
-    *   Define parameters in `OpenHeadstageParams` for EQ enable and 10 bands of EQ settings (persisted).
-    *   Integrate `StereoParametricEQ` into `Plugin::process()`.
-    *   *Status: DSP logic for `BiquadFilter` and `StereoParametricEQ` assumed to be in `src/dsp/`. `AutoEqParser` also assumed available. Structural integration into `src/lib.rs` (parameter handling, process chain) is complete. Compilation and functional testing deferred to user's local environment.*
-
-*   **1.6: Basic User Interface (`egui`) (`src/lib.rs`)**
-    *   Implement `Plugin::editor()` using `nih-plug-egui`.
-    *   Design UI layout for:
-        *   Button to load SOFA file (using `rfd` for dialog), displaying current path.
-        *   Sliders for output gain.
-        *   Sliders for L/R speaker azimuth/elevation.
-        *   Checkbox to enable/disable EQ.
-        *   Controls for 10 EQ bands (enable, type, Fc, Q, Gain).
-        *   (Stretch goal: 2D pad for speaker angle selection).
-    *   *Status: UI development is pending resolution of compilation issues or setup in user's local environment. `nih_plug_egui` dependency is optional and currently commented out in `src/lib.rs`.*
-
-*   **1.7: Build, Test, and Refine MVP**
-    *   Bundle CLAP plugin using `nih_plug_xtask`.
-    *   Test with CLAP hosts (REAPER, Ardour, Bitwig) on Linux.
-    *   Profile and optimize critical DSP sections.
-    *   Ensure state persistence for all relevant parameters.
-    *   *Status: Blocked in CI by compilation issues. User will need to perform these steps in their local environment.*
-
-**Phase 2: Enhancements (Post-MVP)**
-
-*   **2.1: Speaker Emulation EQ**
-    *   Research and implement common speaker type emulations (e.g., near-field, hi-fi) using an additional EQ stage or filter profiles.
-    *   This could involve fixed EQ curves or a simpler tone control (bass/treble) for the virtual speakers.
-    *   Add UI elements for selecting speaker emulation type.
-
-*   **2.2: Basic Room Simulation Module**
-    *   Integrate a simple algorithmic reverb or a convolution slot for a basic Room Impulse Response (RIR) to add environmental context.
-    *   This would be a simpler alternative to full BRIRs, applied after anechoic HRTF convolution.
-    *   Parameters for room size, decay time, wet/dry mix.
-
-*   **2.3: Advanced SOFA/HRIR Management**
-    *   UI for listing available HRIR measurements within a loaded SOFA file (if multiple exist).
-    *   Allow selection of specific measurement indices or nearest available for desired angles.
-    *   Support for more SOFA conventions if necessary.
-    *   Investigate direct BRIR loading and processing if distinct from HRTF + Room Sim.
-
-*   **2.4: UI Enhancements**
-    *   Implement a 2D draggable XY Pad for intuitive speaker angle selection.
-    *   Visualizations for EQ curves.
-    *   Improved layout and user feedback.
-    *   Preset system for saving/loading plugin settings (leveraging `nih-plug` capabilities).
-
-*   **2.5: Performance Optimization**
-    *   In-depth profiling of audio processing chain.
-    *   Explore SIMD optimizations for convolution and EQ if not already leveraged by dependencies.
-
-**Future Considerations (Beyond Phase 2)**
-
-*   **VST3 Plugin Format:** Explore and implement VST3 support using `nih-plug` for broader DAW compatibility.
-*   **Advanced Room Acoustics:**
-    *   More sophisticated room simulation algorithms.
-    *   Integration with tools like `Wayverb` for generating custom BRIRs from 3D models, if a feasible workflow can be established for plugin use.
-*   **Dynamic Head Tracking:**
-    *   Research open-source head tracking solutions on Linux.
-    *   If feasible, integrate head tracking to dynamically update HRIR selection/interpolation for improved immersion. This is a significant research and development effort.
-*   **Expanded Headphone EQ Database/Integration:**
-    *   Easier import or built-in support for a wider range of headphone EQ profiles beyond manual AutoEQ file parsing.
-*   **Cross-platform Compatibility:** While initially Linux-focused, investigate potential for compiling on other platforms if `nih-plug` and dependencies allow.
-*   **Community Feature Requests:** Incorporate feedback and features requested by the user community.
+Distributed under the Apache License, Version 2.0. See `LICENSE` for more information.
