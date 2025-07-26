@@ -40,3 +40,9 @@ flamegraph.svg
 /temp/
 /temp_nih_example/
 /scripts/venv/
+
+# Bundled plugin output
+/open-headstage.clap/
+
+# Local lock files for sub-projects
+/xtask/Cargo.lock
