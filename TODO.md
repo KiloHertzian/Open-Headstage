@@ -11,9 +11,13 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Current Priority
 
+- [ ] **[UI-REFINEMENT] Ameliorate the GUI:**
+  - **Description:** Improve the layout, clarity, and overall user experience of the plugin's graphical interface.
+  - **Priority:** Highest.
+
 - [ ] **[BUILD-4] Diagnose DAW Plugin Detection Failure:**
   - **Description:** With a stable standalone binary now working, resume the diagnostic protocol to determine why the CLAP plugin is not being detected by hosts like Carla and Reaper.
-  - **Priority:** Highest.
+  - **Priority:** High.
   - **Sub-tasks:**
     - [ ] Systematically follow the steps in `docs/research/Diagnostic Protocol for CLAP on LINUX.md`.
     - [ ] Verify dynamic library dependencies using `ldd`.
@@ -28,6 +32,21 @@ This file tracks the development tasks for the Open Headstage project.
     - [x] Build and run the standalone binary to verify it launches.
     - [x] Debug and fix `GuiContext` warnings related to incorrect parameter setting.
   - **Status:** DONE
+
+---
+## Backlog
+
+- [ ] **[TEST-1] Test AutoEQ Integration:**
+  - **Description:** Thoroughly test the AutoEQ profile loading and application to ensure it works correctly with various headphone models.
+
+- [ ] **[TEST-2] Test Linux Release:**
+  - **Description:** Perform comprehensive testing on the standalone Linux build on various distributions.
+
+- [ ] **[TEST-3] Test Windows Release:**
+  - **Description:** Create and test a standalone Windows build.
+
+- [ ] **[DOCS-1] Review ARCHITECTURE.md:**
+  - **Description:** Perform a detailed review of the `ARCHITECTURE.md` file to ensure it accurately reflects the current state of the project and make any necessary updates.
 
 ---
 ## Phase 1: Core Functionality & Integration (Complete)

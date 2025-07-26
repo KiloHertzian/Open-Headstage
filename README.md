@@ -25,12 +25,16 @@ Open Headstage is a professional-grade audio processing tool for enthusiasts and
 This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. Our future goal is to package the core technology as a **CLAP plugin** for seamless integration into digital audio workstations (DAWs).
 
 ### Core Features
+<div style="font-size: 0.9em;">
+
 *   **Binaural Convolution Engine:** Uses Head-Related Transfer Functions (HRTFs) to accurately position sound in a 3D space.
 *   **SOFA File Support:** Load your own HRTF profiles in the standard SOFA format for a personalized experience.
 *   **10-Band Parametric EQ:** Correct your headphone's frequency response with a powerful parametric equalizer.
 *   **AutoEQ Integration:** Easily import and apply headphone correction profiles from the popular AutoEQ project.
 *   **Standalone First:** A dedicated application for all major desktop operating systems.
 *   **Future CLAP Support:** Planned integration with professional DAWs through the modern CLAP plugin format.
+
+</div>
 
 ## Signal Path & Architecture
 
@@ -94,6 +98,10 @@ To build Open Headstage from source, you will need the following tools and libra
         ```bash
         sudo apt-get update
         sudo apt-get install -y libgl-dev libx11-xcb-dev libmysofa-dev libgtk-3-dev
+        ```
+    *   **On Linux (Arch/CachyOS):**
+        ```bash
+        sudo pacman -Syu --needed mesa libx11 libxcb libmysofa gtk3
         ```
     *   **On Windows:** (Instructions to be added)
     *   **On macOS:** (Instructions to be added)
