@@ -48,6 +48,13 @@ This file tracks the development tasks for the Open Headstage project.
 - [ ] **[DOCS-1] Review ARCHITECTURE.md:**
   - **Description:** Perform a detailed review of the `ARCHITECTURE.md` file to ensure it accurately reflects the current state of the project and make any necessary updates.
 
+- [ ] **[SOFA-5] Revisit SOFA Loading and Resampling:**
+  - **Description:** Verify that the SOFA loading and HRIR resampling engine is robust and performs correctly across a wide range of host sample rates.
+  - **Sub-tasks:**
+    - [ ] Test with standard sample rates (44.1 kHz, 48 kHz, 96 kHz).
+    - [ ] Test with high-end sample rates (192 kHz, 384 kHz).
+    - [ ] Investigate and fix any potential audio artifacts or performance issues at the rate extremes.
+
 ---
 ## Phase 1: Core Functionality & Integration (Complete)
 
