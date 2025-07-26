@@ -38,37 +38,36 @@ The application's audio processing is designed for high-fidelity and low latency
 
 ```mermaid
 graph TD
-    subgraph "User Interface & Control"
+    %% ---- Control Plane ----
+    subgraph "User Controls & File Loading"
         direction LR
         UI["fa:fa-desktop User Interface (egui)"]
-        Params["fa:fa-sliders-h Plugin Parameters"]
         SofaLoader["fa:fa-file-audio SOFA File Loader"]
         AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
-
-        UI -- "Modifies" --> Params
-        UI -- "Triggers" --> SofaLoader
-        UI -- "Triggers" --> AutoEqLoader
     end
 
-    subgraph "Real-time Audio Signal Path"
-        direction TB
-        Input["fa:fa-volume-down Stereo Audio Input"]
-        EQ["fa:fa-wave-square Headphone EQ"]
-        Conv["fa:fa-headphones-alt Binaural Convolution"]
-        Gain["fa:fa-volume-up Output Gain"]
-        Output["fa:fa-headphones Stereo Audio Output"]
-
-        Input --> EQ --> Conv --> Gain --> Output
+    subgraph "Configuration"
+        Params["fa:fa-sliders-h Plugin Parameters"]
     end
 
-    %% Connections between subgraphs
+    UI -- "Modifies & Triggers" --> Params
+    UI -- "Triggers" --> SofaLoader
+    UI -- "Triggers" --> AutoEqLoader
+
+    %% ---- Real-time Audio Signal Path ----
+    subgraph "Signal Path"
+        direction LR
+        Input["fa:fa-volume-down Stereo Input"] --> EQ["fa:fa-wave-square Headphone EQ"] --> Conv["fa:fa-headphones-alt Binaural Convolution"] --> Gain["fa:fa-volume-up Output Gain"] --> Output["fa:fa-headphones Stereo Output"]
+    end
+
+    %% ---- Control Connections to Signal Path ----
     Params -- "Controls" --> EQ
     Params -- "Controls" --> Conv
     Params -- "Controls" --> Gain
     SofaLoader -- "Provides HRTFs" --> Conv
     AutoEqLoader -- "Provides Settings" --> EQ
 
-    %% Styling
+    %% ---- Styling ----
     classDef dsp fill:#1f2937,stroke:#60a5fa,color:#e5e7eb
     classDef io fill:#111827,stroke:#9ca3af,color:#e5e7eb
     classDef control fill:#111827,stroke:#9ca3af,color:#e5e7eb
