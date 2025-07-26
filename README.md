@@ -81,8 +81,8 @@ graph LR
     class UI,Params,SofaLoader,AutoEqLoader control
 
     %% ---- Link Styling ----
-    linkStyle 2,3,4 stroke:#84cc16,stroke-width:2px,stroke-dasharray: 3 3
-    linkStyle 9,10,11,12,13 stroke:#ffb700,stroke-width:2px
+    linkStyle 0,1,2 stroke:#84cc16,stroke-width:2px,stroke-dasharray: 3 3
+    linkStyle 7,8,9,10,11 stroke:#ffb700,stroke-width:2px
 ```
 
 ## Getting Started

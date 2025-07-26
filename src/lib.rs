@@ -14,11 +14,11 @@
 
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
 use parking_lot::{Mutex, RwLock};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use strum::IntoEnumIterator;
 
 // Make sure our modules are declared
@@ -270,7 +270,8 @@ impl Plugin for OpenHeadstagePlugin {
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
-        let editor_state = EditorState::new(self.gui_task_sender.clone(), self.auto_eq_result.clone());
+        let editor_state =
+            EditorState::new(self.gui_task_sender.clone(), self.auto_eq_result.clone());
 
         create_egui_editor(
             self.params.editor_state.clone(),
@@ -363,15 +364,21 @@ impl Plugin for OpenHeadstagePlugin {
                             for (i, band_param) in params.eq_bands.iter().enumerate() {
                                 if let Some(band_setting) = bands.get(i) {
                                     setter.set_parameter(&band_param.enabled, true);
-                                    setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
-                                    setter.set_parameter(&band_param.frequency, band_setting.frequency);
+                                    setter.set_parameter(
+                                        &band_param.filter_type,
+                                        band_setting.filter_type,
+                                    );
+                                    setter.set_parameter(
+                                        &band_param.frequency,
+                                        band_setting.frequency,
+                                    );
                                     setter.set_parameter(&band_param.q, band_setting.q);
                                     setter.set_parameter(&band_param.gain, band_setting.gain);
                                 } else {
                                     setter.set_parameter(&band_param.enabled, false);
                                 }
                             }
-                            
+
                             for band_param in params.eq_bands.iter() {
                                 setter.end_set_parameter(&band_param.gain);
                                 setter.end_set_parameter(&band_param.q);
