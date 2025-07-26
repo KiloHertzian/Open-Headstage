@@ -40,10 +40,10 @@ The application's audio processing is designed for high-fidelity and low latency
 graph TD
     subgraph "User Interface & Control"
         direction LR
-        UI[<img src="https://raw.githubusercontent.com/user-attachments/assets/a270c007-213a-428c-8a8a-5a304855b1b7" width="30" style="vertical-align: middle; margin-right: 5px;" /> User Interface (egui)]
-        Params[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Plugin Parameters]
-        SofaLoader[<img src="https://raw.githubusercontent.com/user-attachments/assets/33122a50-511a-411a-933a-022151313858" width="30" style="vertical-align: middle; margin-right: 5px;" /> SOFA File Loader]
-        AutoEqLoader[<img src="https://raw.githubusercontent.com/user-attachments/assets/33122a50-511a-411a-933a-022151313858" width="30" style="vertical-align: middle; margin-right: 5px;" /> AutoEQ Profile Loader]
+        UI["fa:fa-desktop User Interface (egui)"]
+        Params["fa:fa-sliders-h Plugin Parameters"]
+        SofaLoader["fa:fa-file-audio SOFA File Loader"]
+        AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
 
         UI -- "Modifies" --> Params
         UI -- "Triggers" --> SofaLoader
@@ -52,11 +52,11 @@ graph TD
 
     subgraph "Real-time Audio Signal Path"
         direction TB
-        Input[<img src="https://raw.githubusercontent.com/user-attachments/assets/58551828-597e-4213-8701-8078c1d8a82d" width="30" style="vertical-align: middle; margin-right: 5px;" /> Stereo Audio Input]
-        EQ[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Headphone EQ]
-        Conv[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Binaural Convolution]
-        Gain[<img src="https://raw.githubusercontent.com/user-attachments/assets/98023b52-e55f-441c-8b5c-02b41572419f" width="30" style="vertical-align: middle; margin-right: 5px;" /> Output Gain]
-        Output[<img src="https://raw.githubusercontent.com/user-attachments/assets/58551828-597e-4213-8701-8078c1d8a82d" width="30" style="vertical-align: middle; margin-right: 5px;" /> Stereo Audio Output]
+        Input["fa:fa-volume-down Stereo Audio Input"]
+        EQ["fa:fa-wave-square Headphone EQ"]
+        Conv["fa:fa-headphones-alt Binaural Convolution"]
+        Gain["fa:fa-volume-up Output Gain"]
+        Output["fa:fa-headphones Stereo Audio Output"]
 
         Input --> EQ --> Conv --> Gain --> Output
     end
