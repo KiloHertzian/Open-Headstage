@@ -37,26 +37,30 @@ This project is developed as a **standalone application first**, ensuring a stab
 The application's audio processing is designed for high-fidelity and low latency, following a clean and logical signal path.
 
 ```mermaid
-graph TD
+graph LR
     %% ---- Control Plane ----
-    subgraph "User Controls & File Loading"
-        direction LR
-        UI["fa:fa-desktop User Interface (egui)"]
-        SofaLoader["fa:fa-file-audio SOFA File Loader"]
-        AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
-    end
+    subgraph "Control Plane"
+        direction TB
+        
+        subgraph "User Controls & File Loading"
+            direction LR
+            UI["fa:fa-desktop User Interface (egui)"]
+            SofaLoader["fa:fa-file-audio SOFA File Loader"]
+            AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
+        end
 
-    subgraph "Configuration"
-        Params["fa:fa-sliders-h Plugin Parameters"]
-    end
+        subgraph "Configuration"
+            Params["fa:fa-sliders-h Plugin Parameters"]
+        end
 
-    UI -- "Modifies & Triggers" --> Params
-    UI -- "Triggers" --> SofaLoader
-    UI -- "Triggers" --> AutoEqLoader
+        UI -- "Modifies & Triggers" --> Params
+        UI -- "Triggers" --> SofaLoader
+        UI -- "Triggers" --> AutoEqLoader
+    end
 
     %% ---- Real-time Audio Signal Path ----
     subgraph "Signal Path"
-        direction LR
+        direction TB
         Input["fa:fa-volume-down Stereo Input"] --> EQ["fa:fa-wave-square Headphone EQ"] --> Conv["fa:fa-headphones-alt Binaural Convolution"] --> Gain["fa:fa-volume-up Output Gain"] --> Output["fa:fa-headphones Stereo Output"]
     end
 
@@ -75,6 +79,10 @@ graph TD
     class Input,Output io
     class EQ,Conv,Gain dsp
     class UI,Params,SofaLoader,AutoEqLoader control
+
+    %% ---- Link Styling ----
+    linkStyle 2,3,4 stroke:#84cc16,stroke-width:2px,stroke-dasharray: 3 3
+    linkStyle 9,10,11,12,13 stroke:#ffb700,stroke-width:2px
 ```
 
 ## Getting Started
