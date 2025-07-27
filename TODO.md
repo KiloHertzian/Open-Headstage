@@ -11,13 +11,25 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Current Priority
 
+- [ ] **[UI-REFINEMENT] Redesign Main Panel Layout:**
+  - **Description:** Refactor the main panel UI into logical, well-spaced groups to improve clarity and usability.
+  - **Priority:** Highest.
+  - **Sub-tasks:**
+    - [x] Group controls for Master Output, Speaker Configuration, and Headphone EQ.
+    - [x] Re-integrate the Speaker Visualizer widget into the Speaker Configuration group.
+    - [ ] Add collapsible headers for each group to save space.
+    - [ ] Vertically center the speaker sliders under their respective labels.
+
+- [ ] **[UI-REFINEMENT] Enhance EQ Editor Panel:**
+  - **Description:** Improve the layout and functionality of the slide-out EQ editor panel.
+  - **Priority:** High.
+  - **Sub-tasks:**
+    - [ ] Implement a more compact layout for the 10 EQ band controls to avoid horizontal scrolling.
+    - [ ] Implement the EQ curve visualization area.
+
 - [ ] **[UI-REFINEMENT] Refactor `with_layer_id`:**
   - **Description:** Replace the deprecated `with_layer_id` with the modern `ui.scope()` pattern in `src/lib.rs` to remove the compilation warning.
   - **Priority:** Medium.
-
-- [ ] **[UI-REFINEMENT] Ameliorate the GUI:**
-  - **Description:** Improve the layout, clarity, and overall user experience of the plugin's graphical interface.
-  - **Priority:** Highest.
 
 - [ ] **[BUILD-4] Diagnose DAW Plugin Detection Failure:**
   - **Description:** With a stable standalone binary now working, resume the diagnostic protocol to determine why the CLAP plugin is not being detected by hosts like Carla and Reaper.
