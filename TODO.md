@@ -20,12 +20,21 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] Add collapsible headers for each group to save space.
     - [ ] Vertically center the speaker sliders under their respective labels.
 
+- [ ] **[UI-BUG] Fix Speaker Configuration Layout:**
+  - **Description:** The "Left" speaker control is floating incorrectly, and the "Right" control is not visible. The layout needs to be fixed to correctly display both speaker controls.
+  - **Priority:** High.
+
+- [ ] **[UI-REFINEMENT] Increase Control and Font Size:**
+  - **Description:** Increase the font size for all UI elements except for the PEQ section. Buttons and sliders should also be made larger to improve usability and readability.
+  - **Priority:** Medium.
+
 - [ ] **[UI-REFINEMENT] Enhance EQ Editor Panel:**
   - **Description:** Improve the layout and functionality of the slide-out EQ editor panel.
   - **Priority:** High.
   - **Sub-tasks:**
     - [ ] Implement a more compact layout for the 10 EQ band controls to avoid horizontal scrolling.
     - [ ] Implement the EQ curve visualization area.
+    - [ ] Adjust the PEQ section layout to allocate more vertical space for the future EQ curve visualization.
 
 - [ ] **[UI-REFINEMENT] Refactor `with_layer_id`:**
   - **Description:** Replace the deprecated `with_layer_id` with the modern `ui.scope()` pattern in `src/lib.rs` to remove the compilation warning.
@@ -70,6 +79,10 @@ This file tracks the development tasks for the Open Headstage project.
     - [ ] Test with standard sample rates (44.1 kHz, 48 kHz, 96 kHz).
     - [ ] Test with high-end sample rates (192 kHz, 384 kHz).
     - [ ] Investigate and fix any potential audio artifacts or performance issues at the rate extremes.
+
+- [ ] **[DOCS-2] Re-implement and maintain CHANGELOG.md:**
+  - **Description:** Re-create the changelog with accurate dates and ensure it aligns with the project's legal framework and licensing considerations. This task should be done in conjunction with the legal framework phase.
+  - **Priority:** Lowest.
 
 ---
 ## Phase 1: Core Functionality & Integration (Complete)
