@@ -18,7 +18,7 @@ This file tracks the development tasks for the Open Headstage project.
     - **Priority:** Highest.
     - **Status:** DONE.
 
-- [ ] **[DOCS] Update BUGS.md with Slider Reset Lesson:**
+- [x] **[DOCS] Update BUGS.md with Slider Reset Lesson:**
     - **Description:** Add a "Lesson Learned" entry to `BUGS.md` detailing the resolution of the slider reset bug.
     - **Priority:** High.
     - **Content to Add:**

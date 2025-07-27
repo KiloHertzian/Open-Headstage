@@ -15,6 +15,21 @@ This document tracks known bugs, limitations, and the overall development status
 
 ## Resolved Issues & Lessons Learned
 
+### `egui` Slider Reset Logic (Resolved)
+
+*   **Original Problem:** The double-click-to-reset functionality on the main UI sliders was not working. Multiple attempts to fix this by manually handling the `double_clicked()` and `changed()` events failed, leading to incorrect behavior or compilation errors.
+*   **Root Cause Analysis:** The core issue was fighting the `nih-plug` framework instead of using its provided tools. The manual implementation attempted to re-create logic that was already built into the framework's own widgets. The `egui::Slider` is a generic widget, but `nih-plug` provides a "smart" `nih_plug_egui::widgets::ParamSlider` that is deeply integrated with the parameter system. Furthermore, when attempting to use `ParamSlider`, the incorrect constructor (`::new()`) was used instead of the correct one (`::for_param()`), which requires passing the `ParamSetter`.
+*   **Resolution:** The manual `egui::Slider` and all associated event-handling logic were removed entirely. They were replaced with the idiomatic `nih_plug_egui::widgets::ParamSlider`.
+    1.  The `use nih_plug_egui::widgets;` statement was added.
+    2.  All sliders were changed to `ui.add(widgets::ParamSlider::for_param(&params.my_param, setter));`.
+    3.  This widget correctly handles user interactions, including double-click-to-reset, and communicates with the `nih-plug` parameter system automatically. The `.with_value_to_string()` formatter on the `FloatParam` was also automatically respected, solving the dB display issue without any extra code.
+*   **Lesson Learned:**
+    1.  **Use the Framework's Widgets:** When a framework provides its own UI widgets (like `ParamSlider`), always prefer them over generic ones. They contain critical integration logic that is difficult and error-prone to replicate manually. The framework's widgets are the framework's intended API for UI interaction.
+    2.  **Simplify to the Intended Path:** The repeated failures and increasing complexity of the manual solution were a strong signal that the approach was wrong. The solution was to simplify by removing all the manual code and reverting to the single, framework-provided component. If a solution feels like you're fighting the tool, you probably are.
+    3.  **Check the Constructor Signature:** A quick look at the `ParamSlider` source or documentation would have revealed the correct `for_param(&param, &setter)` constructor, preventing the final build failure. The compiler's error message was the ultimate guide here.
+
+
+
 ### `egui-file-dialog` Usage Pattern (Resolved)
 
 *   **Original Problem:** The file dialog windows for loading SOFA files and AutoEQ profiles stopped appearing, even though the `cargo tree` output showed no version conflicts between `egui`, `nih-plug`, and `egui-file-dialog`.
