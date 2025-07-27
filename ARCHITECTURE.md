@@ -6,7 +6,7 @@ This document provides an overview of the Open Headstage plugin architecture, in
 
 Open Headstage is an open-source, multiplatform binaural speaker simulation application. Its primary goal is to provide a high-quality, flexible tool for experiencing stereo audio over headphones as if listening to physical speakers in a well-defined acoustic space.
 
-The project is developed as a **standalone application first**, targeting Linux, Windows, and macOS. This standalone version serves as the primary platform for development, debugging, and use. In the future, the core logic is planned to be bundled as a **CLAP plugin** for use in digital audio workstations (DAWs).
+The project is developed as a **standalone application first**, targeting Linux, Windows, and macOS. This standalone version serves as the primary platform for development, debugging, and use. The core logic is also planned to be bundled as a **CLAP plugin** for use in digital audio workstations (DAWs), although full DAW compatibility is still under development.
 
 The application processes stereo audio input, applies binaural spatialization using Head-Related Transfer Functions (HRTFs), and optionally applies headphone equalization.
 
@@ -15,7 +15,7 @@ The application processes stereo audio input, applies binaural spatialization us
 *   **Core Language:** Rust (2024 Edition)
 *   **Plugin Framework:** `nih-plug` (Rust-based framework for audio plugins)
 *   **Plugin Formats:**
-    *   CLAP (primary target)
+    *   CLAP (primary target, currently under development for full DAW compatibility)
     *   VST3 (disabled): VST3 support has been explicitly disabled to avoid the GPLv3 license of the VST3 SDK. The project focuses on CLAP as the primary plugin format, which uses the permissive MIT license.
 *   **DSP Libraries:**
     *   `rustfft`: For Fast Fourier Transforms, used in the convolution engine.
@@ -47,7 +47,7 @@ The core logic is primarily located in the `src/` directory.
     *   `process()`: The main audio processing callback. It receives input audio, applies EQ, then convolution, and applies output gain. It also handles parameter smoothing.
     *   `editor()`: (If UI feature is enabled) Provides the GUI editor.
     *   `params()`: Exposes the plugin's parameters to the host.
-*   **Plugin Export:** Uses `nih_export_clap!` to make the plugin available in the CLAP format.
+*   **Plugin Export:** Uses `nih_export_clap!` to make the plugin available in the CLAP format. (Note: While the plugin builds as CLAP, DAW detection and full compatibility are still under development.)
 
 ### 3.2. Digital Signal Processing (`src/dsp/`)
 
@@ -102,7 +102,7 @@ This directory contains modules for various audio processing tasks.
 *   **Compilation:**
     *   `cargo build`: Compiles the plugin in debug mode.
     *   `cargo build --release`: Compiles the plugin in release mode (optimized).
-*   **Output:** The compiled plugin (e.g., `.clap`) will be located in `target/debug/` or `target/release/`.
+*   **Output:** The compiled standalone application will be located in `target/debug/` or `target/release/`. The CLAP plugin (`.clap` bundle) is also generated, but its detection by DAWs is currently under development.
 *   **Bundling (for distribution):**
     *   While `nih-plug` provides `cargo xtask bundle`, the current practice involves manual creation of the `.clap` directory and copying the compiled `.so` file into it. Refer to the "Operational Reminder (Plugin Validation)" in `TODO.md` for the most reliable validation workflow.
 
@@ -123,8 +123,8 @@ This directory contains modules for various audio processing tasks.
 
 ## 6. Current Status & Known Issues
 
-*   **Current Status:** The `nih-plug` dependency has been pinned to a specific, stable commit hash in `Cargo.toml` to resolve previous compatibility and git fetching issues. This has stabilized local builds and addressed `clap-validator` warnings.
-*   **Known Issues:** Refer to `BUGS.md` for a comprehensive list of known issues and their resolutions.
+*   **Current Status:** The `nih-plug` dependency has been pinned to a specific, stable commit hash in `Cargo.toml` to resolve previous compatibility and git fetching issues. This has stabilized local builds and addressed `clap-validator` warnings. The standalone application is functional.
+*   **Known Issues:** The primary known issue is the **DAW Plugin Detection Failure** for the CLAP plugin. While the plugin builds, it is not consistently detected or loaded by hosts like Carla and Reaper. This is an active area of development and debugging. Refer to `BUGS.md` for a comprehensive list of known issues and their resolutions.
 
 ## 7. Contribution Guidelines for AI Agents
 

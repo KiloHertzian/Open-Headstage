@@ -22,7 +22,7 @@
 
 Open Headstage is a professional-grade audio processing tool for enthusiasts and professionals who want to achieve a more natural and immersive listening experience on headphones. By using advanced digital signal processing (DSP), it simulates the way sound from stereo speakers interacts with your head and ears, creating a "phantom" soundstage in front of you.
 
-This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. Our future goal is to package the core technology as a **CLAP plugin** for seamless integration into digital audio workstations (DAWs).
+This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. The core technology is also planned to be bundled as a **CLAP plugin** for integration into digital audio workstations (DAWs), although full DAW compatibility is still under development and the plugin is not yet consistently detected by DAWs.
 
 ### Core Features
 <div style="font-size: 0.9em;">
@@ -32,7 +32,7 @@ This project is developed as a **standalone application first**, ensuring a stab
 *   **10-Band Parametric EQ:** Correct your headphone's frequency response with a powerful parametric equalizer.
 *   **AutoEQ Integration:** Easily import and apply headphone correction profiles from the popular AutoEQ project.
 *   **Standalone First:** A dedicated application for all major desktop operating systems.
-*   **Future CLAP Support:** Planned integration with professional DAWs through the modern CLAP plugin format.
+*   **CLAP Plugin Support (Planned):** Integration with the modern CLAP plugin format is planned, but the plugin is not yet consistently detected or loaded by DAWs.
 
 </div>
 
@@ -103,8 +103,8 @@ To build Open Headstage from source, you will need the following tools and libra
         ```bash
         sudo pacman -Syu --needed mesa libx11 libxcb libmysofa gtk3
         ```
-    *   **On Windows:** (Instructions to be added)
-    *   **On macOS:** (Instructions to be added)
+    *   **On Windows:** (Instructions pending)
+    *   **On macOS:** (Instructions pending)
 
 ### Building from Source
 
@@ -122,6 +122,13 @@ To build Open Headstage from source, you will need the following tools and libra
     ```bash
     ./target/release/open-headstage
     ```
+4.  **Build the CLAP plugin (manual bundling):**
+    After building, the CLAP plugin (`.so` file) needs to be manually copied into a `.clap` bundle directory for DAW detection.
+    ```bash
+    mkdir -p ~/.clap/open-headstage.clap/contents/linux/x86_64
+    cp target/release/libopen_headstage.so ~/.clap/open-headstage.clap/contents/linux/x86_64/open-headstage.so
+    ```
+    For more details on plugin validation and bundling, refer to the "Operational Reminder (Plugin Validation)" in `TODO.md`.
 
 ## How to Contribute
 
@@ -138,3 +145,5 @@ Please refer to our issue templates for bug reports and feature requests.
 ## License
 
 Distributed under the Apache License, Version 2.0. See `LICENSE` for more information.
+
+**Note on VST3:** While VST3 support is currently disabled, if it were to be re-enabled, the `vst3-sys` crate's GPLv3 license would require any distributed binary containing the VST3 version of this plugin to also have its corresponding source code made available under the GPLv3. Refer to `LICENSES.md` for full details on all project dependencies and their licenses.
