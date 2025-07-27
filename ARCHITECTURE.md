@@ -16,7 +16,7 @@ The application processes stereo audio input, applies binaural spatialization us
 *   **Plugin Framework:** `nih-plug` (Rust-based framework for audio plugins)
 *   **Plugin Formats:**
     *   CLAP (primary target)
-    *   VST3 (secondary target)
+    *   VST3 (disabled): VST3 support has been explicitly disabled to avoid the GPLv3 license of the VST3 SDK. The project focuses on CLAP as the primary plugin format, which uses the permissive MIT license.
 *   **DSP Libraries:**
     *   `rustfft`: For Fast Fourier Transforms, used in the convolution engine.
     *   `realfft`: Wrapper around `rustfft` for real-valued signals.
@@ -47,7 +47,7 @@ The core logic is primarily located in the `src/` directory.
     *   `process()`: The main audio processing callback. It receives input audio, applies EQ, then convolution, and applies output gain. It also handles parameter smoothing.
     *   `editor()`: (If UI feature is enabled) Provides the GUI editor.
     *   `params()`: Exposes the plugin's parameters to the host.
-*   **Plugin Export:** Uses `nih_export_clap!` and `nih_export_vst3!` to make the plugin available in these formats.
+*   **Plugin Export:** Uses `nih_export_clap!` to make the plugin available in the CLAP format.
 
 ### 3.2. Digital Signal Processing (`src/dsp/`)
 
@@ -102,9 +102,9 @@ This directory contains modules for various audio processing tasks.
 *   **Compilation:**
     *   `cargo build`: Compiles the plugin in debug mode.
     *   `cargo build --release`: Compiles the plugin in release mode (optimized).
-*   **Output:** The compiled plugin (e.g., `.clap`, `.vst3`) will be located in `target/debug/` or `target/release/`.
+*   **Output:** The compiled plugin (e.g., `.clap`) will be located in `target/debug/` or `target/release/`.
 *   **Bundling (for distribution):**
-    *   `nih-plug` often uses `cargo xtask bundle <plugin_name>` for creating distributable bundles, but this project might have its own specifics or rely on manual copying post-build. Check `README.md` or `nih-plug` documentation.
+    *   While `nih-plug` provides `cargo xtask bundle`, the current practice involves manual creation of the `.clap` directory and copying the compiled `.so` file into it. Refer to the "Operational Reminder (Plugin Validation)" in `TODO.md` for the most reliable validation workflow.
 
 ## 5. Testing
 
@@ -123,8 +123,8 @@ This directory contains modules for various audio processing tasks.
 
 ## 6. Current Status & Known Issues
 
-*   Refer to `README.md` (Roadmap section) and `BUGS.md` for the most up-to-date information on what parts are working, in progress, or have known limitations.
-*   **Key Blocker (as of last update):** `nih-plug` version compatibility with the CI environment's Rust compiler, and git fetching issues for specific `nih-plug` revisions. This primarily affects CI builds and testing; local development with a compatible Rust version is expected.
+*   **Current Status:** The `nih-plug` dependency has been pinned to a specific, stable commit hash in `Cargo.toml` to resolve previous compatibility and git fetching issues. This has stabilized local builds and addressed `clap-validator` warnings.
+*   **Known Issues:** Refer to `BUGS.md` for a comprehensive list of known issues and their resolutions.
 
 ## 7. Contribution Guidelines for AI Agents
 

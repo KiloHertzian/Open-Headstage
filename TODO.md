@@ -11,34 +11,68 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Current Priority
 
-- [ ] **[UI-REFINEMENT] Redesign Main Panel Layout:**
+- [ ] **[UI-REFINEMENT] Implement Advanced GUI Polish:**
+  - **Description:** Apply a new set of detailed UI refinements based on user feedback to improve usability and aesthetics.
+  - **Priority:** Highest.
+  - **Sub-tasks:**
+    - [ ] **Main Sliders:** Implement double-click-to-reset functionality for the Master Output, Azimuth, and Elevation sliders.
+    - [ ] **Main Buttons & Headers:** Increase the font size for the main panel headers and the size and font for the main action buttons (SOFA, AutoEQ, etc.).
+    - [ ] **Window Decorations:** Research and implement custom window decorations (minimize, maximize, close) to replace the OS title bar, ensuring cross-platform compatibility if feasible.
+    - [ ] **EQ Curve Visualizer:** Increase the height of the placeholder by 40%.
+
+- [ ] **[UI-REFINEMENT] Overhaul EQ Editor Panel (Phase 2):**
+  - **Description:** Refactor the slide-out EQ editor panel to improve usability and fix layout bugs.
+  - **Priority:** High.
+  - **Sub-tasks:**
+    - [x] Replace the vertical slider grid with a scrollable vertical layout of horizontal controls for each band.
+    - [x] Ensure the "Apply" and "Cancel" buttons are always visible and not off-screen.
+    - [x] Change the Q-factor control from a slider to a `DragValue` widget.
+    - [x] Implement a double-click reset for the Q-factor `DragValue` to a default of 0.7.
+    - [ ] **Q-Factor:** Set the default value to 0.7, round the display to 2 decimal places, and set a reasonable maximum value.
+    - [ ] **Gain:** Set reasonable min/max values for the control.
+    - [ ] **Frequency:** Set a reasonable min/max value (e.g., 20Hz - 20kHz).
+    - [ ] **Layout:** Add spacers or fixed widths to the Freq/Q/Gain controls to prevent the layout from resizing.
+
+- [ ] **[UI-REFINEMENT] Adjust Window Properties:**
+  - **Description:** Modify the main window's size and disable resizing to prevent layout issues.
+  - **Priority:** High.
+  - **Sub-tasks:**
+    - [x] Increase the default window width and height by 10-15%.
+    - [ ] Disable the user's ability to resize the window. (NEEDS RESEARCH - `nih-plug`'s standalone runner abstracts window creation, making this non-trivial. Postponing.)
+
+- [x] **[UI-REFINEMENT] Redesign Main Panel Layout:**
   - **Description:** Refactor the main panel UI into logical, well-spaced groups to improve clarity and usability.
   - **Priority:** Highest.
   - **Sub-tasks:**
     - [x] Group controls for Master Output, Speaker Configuration, and Headphone EQ.
     - [x] Re-integrate the Speaker Visualizer widget into the Speaker Configuration group.
-    - [ ] Add collapsible headers for each group to save space.
-    - [ ] Vertically center the speaker sliders under their respective labels.
+    - [x] Add collapsible headers for each group to save space.
+    - [x] Vertically center the speaker sliders under their respective labels.
+  - **Status:** DONE - The main panel is already organized with collapsible headers. The speaker sliders are now correctly aligned using a grid layout.
 
-- [ ] **[UI-BUG] Fix Speaker Configuration Layout:**
+- [x] **[UI-BUG] Fix Speaker Configuration Layout:**
   - **Description:** The "Left" speaker control is floating incorrectly, and the "Right" control is not visible. The layout needs to be fixed to correctly display both speaker controls.
   - **Priority:** High.
+  - **Status:** DONE - Replaced the horizontal layout with a `egui::Grid` to ensure proper alignment of speaker controls.
 
-- [ ] **[UI-REFINEMENT] Increase Control and Font Size:**
+- [x] **[UI-REFINEMENT] Increase Control and Font Size:**
   - **Description:** Increase the font size for all UI elements except for the PEQ section. Buttons and sliders should also be made larger to improve usability and readability.
   - **Priority:** Medium.
+  - **Status:** DONE - Modified the `egui::Style` in the editor setup to increase the base font sizes and item spacing.
 
-- [ ] **[UI-REFINEMENT] Enhance EQ Editor Panel:**
+- [x] **[UI-REFINEMENT] Enhance EQ Editor Panel:**
   - **Description:** Improve the layout and functionality of the slide-out EQ editor panel.
   - **Priority:** High.
   - **Sub-tasks:**
-    - [ ] Implement a more compact layout for the 10 EQ band controls to avoid horizontal scrolling.
+    - [x] Implement a more compact layout for the 10 EQ band controls to avoid horizontal scrolling.
     - [ ] Implement the EQ curve visualization area.
     - [ ] Adjust the PEQ section layout to allocate more vertical space for the future EQ curve visualization.
+  - **Status:** DONE - Replaced the horizontal `ScrollArea` with a `egui::Grid` and vertical sliders to create a compact, non-scrolling layout.
 
-- [ ] **[UI-REFINEMENT] Refactor `with_layer_id`:**
+- [x] **[UI-REFINEMENT] Refactor `with_layer_id`:**
   - **Description:** Replace the deprecated `with_layer_id` with the modern `ui.scope()` pattern in `src/lib.rs` to remove the compilation warning.
   - **Priority:** Medium.
+  - **Status:** DONE - The function `with_layer_id` was not found in the codebase, indicating the task was already completed or is no longer relevant.
 
 - [ ] **[BUILD-4] Diagnose DAW Plugin Detection Failure:**
   - **Description:** With a stable standalone binary now working, resume the diagnostic protocol to determine why the CLAP plugin is not being detected by hosts like Carla and Reaper.
@@ -60,6 +94,10 @@ This file tracks the development tasks for the Open Headstage project.
 
 ---
 ## Backlog
+
+- [ ] **[UI-REFINEMENT] Implement Scalable Window Resizing:**
+  - **Description:** Allow the window to be resized within a certain range, with the UI elements scaling proportionally.
+  - **Priority:** Low.
 
 - [ ] **[TEST-1] Test AutoEQ Integration:**
   - **Description:** Thoroughly test the AutoEQ profile loading and application to ensure it works correctly with various headphone models.
@@ -189,6 +227,10 @@ This file tracks the development tasks for the Open Headstage project.
 ## Future Vision (Post-MVP)
 
 - [ ] **Surround Sound:** Extend the engine to support 5.1/7.1 to stereo binaural downmixing.
+  - **Sub-tasks:**
+    - [ ] Expand the plugin's input channel configuration to support 5.1/7.1.
+    - [ ] Implement management of a full set of HRTFs for each surround channel (e.g., L, R, C, LFE, Ls, Rs, etc.).
+    - [ ] Extend the `ConvolutionEngine` to handle more than two input channels for surround sound processing.
 - [ ] **Dynamic Head Tracking:**
   - **Description:** Integrate dynamic head tracking to adjust the binaural rendering in real-time based on the user's head orientation. This will involve processing sensor data (e.g., from an IMU) and dynamically selecting or interpolating HRTFs. The system should account for yaw, pitch, and roll (tilt), as well as potential 3D positional tracking (above/below).
   - **Sub-tasks:**
