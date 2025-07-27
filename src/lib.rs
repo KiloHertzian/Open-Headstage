@@ -14,7 +14,7 @@
 
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
 use parking_lot::{Mutex, RwLock};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -518,13 +518,25 @@ impl Plugin for OpenHeadstagePlugin {
                                 ui.end_row();
 
                                 ui.label("Azimuth");
-                                ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter));
-                                ui.add(widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter));
+                                ui.add(widgets::ParamSlider::for_param(
+                                    &params.speaker_azimuth_left,
+                                    setter,
+                                ));
+                                ui.add(widgets::ParamSlider::for_param(
+                                    &params.speaker_azimuth_right,
+                                    setter,
+                                ));
                                 ui.end_row();
 
                                 ui.label("Elevation");
-                                ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_left, setter));
-                                ui.add(widgets::ParamSlider::for_param(&params.speaker_elevation_right, setter));
+                                ui.add(widgets::ParamSlider::for_param(
+                                    &params.speaker_elevation_left,
+                                    setter,
+                                ));
+                                ui.add(widgets::ParamSlider::for_param(
+                                    &params.speaker_elevation_right,
+                                    setter,
+                                ));
                                 ui.end_row();
                             });
                     });
