@@ -46,3 +46,6 @@ flamegraph.svg
 
 # Local lock files for sub-projects
 /xtask/Cargo.lock
+
+# Local research and documentation
+docs/research/

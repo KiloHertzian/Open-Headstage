@@ -4,11 +4,29 @@ This document tracks known bugs, limitations, and the overall development status
 
 ---
 
-*There are no known critical bugs at this time.*
+## Active Bugs
+
+- **[RUNTIME] JACK Connection Errors on Startup:**
+  - **Description:** The standalone application consistently fails to connect to the JACK audio server on startup, logging multiple errors like `Cannot connect to server socket err = No such file or directory` and `jack server is not running or cannot be started`. It successfully falls back to the ALSA backend, but this indicates a potential environment or configuration issue.
+  - **Impact:** Prevents audio processing in standalone mode for users who rely on JACK, hindering testing and debugging for that audio subsystem.
+  - **Next Steps:** Investigate whether the JACK server is running correctly on the system before the application starts. This may be an environment issue rather than a code issue.
 
 ---
 
 ## Resolved Issues & Lessons Learned
+
+### `egui-file-dialog` Usage Pattern (Resolved)
+
+*   **Original Problem:** The file dialog windows for loading SOFA files and AutoEQ profiles stopped appearing, even though the `cargo tree` output showed no version conflicts between `egui`, `nih-plug`, and `egui-file-dialog`.
+*   **Root Cause Analysis:** The issue was a subtle but critical logic error in how the `egui-file-dialog` library was being used. The code was calling `file_dialog.update(egui_ctx)` on one line, and then later calling `file_dialog.take_picked()` to check for a result. The `update()` method, however, returns a `Dialog` object which contains the result of the interaction for that frame. The correct pattern is to chain the method call to get the result directly from the object returned by `update()`. By not using the return value of `update()`, the result was being discarded, and the subsequent call to `take_picked()` would never find a selected file.
+*   **Resolution:** The code was refactored to follow the correct usage pattern documented in the `egui-file-dialog` examples.
+    *   The separate call to `state.file_dialog.update(egui_ctx);` was removed.
+    *   The result-checking logic was changed from `if let Some(path) = state.file_dialog.take_picked()` to `if let Some(path) = state.file_dialog.update(egui_ctx).picked()`.
+    *   Additionally, the code was corrected to use `path.to_path_buf()` when sending the result to the background task, as the `picked()` method returns a `Path` reference, while the task expected an owned `PathBuf`.
+*   **Lesson Learned:**
+    1.  **API Return Values Are Critical:** Always check the return values of library functions. The `egui-file-dialog` `update()` method is not just for updating internal state; its return value is the primary way to retrieve the result of the user's interaction for that frame.
+    2.  **Consult Examples for Regressions:** When a previously working feature breaks, and dependency versions seem correct, the next step is to re-verify the implementation against the library's official and current usage examples. APIs can have subtle changes in their expected usage patterns between versions that are not always captured by the type system alone.
+    3.  **Ownership Matters:** Pay close attention to the types returned by third-party libraries. The dialog returned a `&Path`, but the background task required a `PathBuf`. Implicitly relying on type coercion can hide bugs; explicit conversion with `.to_path_buf()` is safer.
 
 ### `nih-plug` GUI Parameter Setting (Resolved)
 
@@ -17,13 +35,16 @@ This document tracks known bugs, limitations, and the overall development status
     1.  **Initial State:** The code did not wrap any UI controls with `begin_set_parameter()` or `end_set_parameter()`, causing the initial warnings.
     2.  **Incorrect Fix (Over-correction):** The first attempt to fix this involved wrapping every `widgets::ParamSlider` and `egui::ComboBox` with `begin/end` calls. This was incorrect and led to a new set of warnings: `begin_set_parameter() was called twice`.
     3.  **The Revelation (Reading the Source):** A direct inspection of the `nih_plug_egui/src/widgets/param_slider.rs` source code revealed the truth: the built-in widgets (`ParamSlider`, etc.) are "smart" and manage the `begin/end` calls **automatically** when the user interacts with them. My manual wrapping was conflicting with this internal behavior.
-*   **Resolution:** The final, correct solution involved two key insights:
+    4.  **Final Bug:** Even after removing the manual wrappers, the warnings persisted. This was traced to using the wrong widget for a boolean parameter (`widgets::ParamSlider` for a `BoolParam`) and later, to not wrapping programmatic parameter changes (like applying a preset) in `begin/end` calls.
+*   **Resolution:** The final, correct solution involved several steps:
     1.  **Trust the Widgets:** All manual `begin/end` wrappers were removed from the `ParamSlider` and `ComboBox` widgets. They are designed to be used directly.
-    2.  **Wrap Manual Calls:** The warnings were actually originating from the `Apply Loaded EQ` button, which sets parameter values programmatically. The fix was to wrap this entire block of manual `setter.set_parameter(...)` calls in a single, large `begin/end` transaction for all affected parameters.
+    2.  **Use the Right Widget:** The `widgets::ParamSlider` being used for the `eq_enable` `BoolParam` was replaced with a standard `egui::toggle_value`, and the parameter change was wrapped manually in `begin/end` calls.
+    3.  **Wrap Manual Calls:** The warnings were ultimately originating from any button click or UI event that set parameter values programmatically. The fix was to wrap these blocks of manual `setter.set_parameter(...)` calls in the appropriate `begin/end` transactions.
 *   **Lesson Learned:**
-    1.  **The `nih-plug` Widgets Are Smart:** The widgets provided by `nih_plug_egui` are not simple UI elements; they are deeply integrated with the parameter system. They handle the gestures of beginning, changing, and ending a parameter adjustment automatically. Do not manually wrap them.
-    2.  **Differentiate UI-driven vs. Programmatic Changes:** The `begin/end` calls are necessary only when you are setting a parameter's value directly in your own code (e.g., applying a preset), not when a user is interacting with a standard `nih-plug` widget.
+    1.  **The `nih-plug` Widgets Are Smart (Mostly):** The widgets provided by `nih_plug_egui` are deeply integrated with the parameter system. They handle the gestures of beginning, changing, and ending a parameter adjustment automatically. Do not manually wrap them.
+    2.  **Differentiate UI-driven vs. Programmatic Changes:** The `begin/end` calls are necessary only when you are setting a parameter's value directly in your own code (e.g., applying a preset or using a standard `egui` widget), not when a user is interacting with a standard `nih-plug` widget.
     3.  **When in Doubt, Read the Source:** The cycle of conflicting warnings was a strong signal that my mental model of the framework was wrong. The definitive answer was not in the examples or high-level docs, but in the implementation of the widget itself.
+    4.  **Use the Correct Widget for the Parameter Type:** `ParamSlider` is for `FloatParam` and `IntParam`. Using it with a `BoolParam` will cause unexpected behavior and warnings. Use standard `egui` widgets and manual `setter` calls for boolean parameters.
 
 ### `clap-validator` Recursion Warning & Background Task Architecture (Resolved)
 

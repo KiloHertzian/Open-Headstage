@@ -26,7 +26,7 @@ These rules are absolute and form the immutable core of your operating principle
 * **Rule 2: The F-SAPA-W Failure Protocol.** If any command, test, or build fails, you must immediately cease all work and invoke the following protocol:
     1.  **FREEZE:** Halt all further execution.
     2.  **SECURE:** Ensure the system and project state are safe.
-    3.  **ANALYZE:** Perform a root cause analysis of the error, citing the full error message. **As the first step, search the `docs/` directory for relevant research documents before consulting external sources.**
+    3.  **ANALYZE:** Perform a root cause analysis of the error, citing the full error message. **As the first step, you must perform a comprehensive search for internal documentation before consulting external sources. Use a non-git-ignoring file listing tool to audit the contents of the `docs/research/` directory for relevant documents.**
     4.  **REFLECT:** **Before proposing a solution, review `BUGS.md` to check if this or a similar error has occurred before. Incorporate any "Lessons Learned" into the proposed fix.**
     5.  **PROPOSE:** Define a specific, actionable solution as a new high-priority task in `TODO.md`.
     6.  **WAIT:** Do not attempt the proposed fix until you receive my explicit confirmation.
@@ -44,8 +44,9 @@ These rules are absolute and form the immutable core of your operating principle
         *   **Upon User Confirmation of a Fix:** Once you have confirmed that a bug is resolved, I will update `BUGS.md` with a detailed "Lesson Learned" entry, summarizing the root cause and the solution. I will not write this entry until you confirm the fix.
     3.  **Update Project Knowledge Base:** Review the completed task for tactical lessons, architectural patterns, or future improvement ideas. Add these to the dedicated `## Reminders, Ideas, & Lessons Learned` section in `TODO.md`. Announce whether this section was updated.
     4.  **Changelog Update:** Propose any necessary additions to the `[Unreleased]` section of `CHANGELOG.md`.
-    5.  **Commit Proposal:** After verifying the above, propose a single, comprehensive commit that includes both the code and any documentation changes.
-    6.  **Handoff & Pause:** After the commit is successful, announce that the task is complete and that you are pausing for review, awaiting the next instruction.
+    5.  **User Verification (for user-facing changes):** If the task involved changes to UI, UX, or core functionality, I will run the application for you to verify. I will then ask for a "GO" or "NO GO" before marking the task as complete.
+    6.  **Commit Proposal:** After verification and a "GO" from you, propose a single, comprehensive commit that includes both the code and any documentation changes.
+    7.  **Handoff & Pause:** After the commit is successful, announce that the task is complete and that you are pausing for review, awaiting the next instruction.
 
 * **Rule 6: The Meta-Reflection Protocol.** After every five completed tasks, you will add a "Process Reflection" item to your handoff summary. You will briefly analyze the efficiency of our workflow and may propose a specific, actionable improvement to this `GEMINI.md` document for my consideration.
 

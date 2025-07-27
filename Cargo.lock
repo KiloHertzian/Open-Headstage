@@ -2028,6 +2028,7 @@ dependencies = [
  "egui-file-dialog",
  "nih_plug",
  "nih_plug_egui",
+ "num-complex",
  "parking_lot",
  "rand",
  "rustfft",

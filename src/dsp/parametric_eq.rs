@@ -16,6 +16,7 @@
 
 use biquad::{Biquad, Coefficients, DirectForm2Transposed, ToHertz, Type};
 use nih_plug::prelude::Enum;
+use num_complex::Complex;
 use strum_macros::EnumIter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter)]
@@ -42,6 +43,7 @@ pub struct BandConfig {
 
 pub struct BiquadFilter {
     filter: DirectForm2Transposed<f32>,
+    coeffs: Coefficients<f32>,
     pub enabled: bool,
 }
 
@@ -49,6 +51,7 @@ impl Clone for BiquadFilter {
     fn clone(&self) -> Self {
         Self {
             filter: self.filter,
+            coeffs: self.coeffs,
             enabled: self.enabled,
         }
     }
@@ -65,6 +68,7 @@ impl BiquadFilter {
         .unwrap();
         Self {
             filter: DirectForm2Transposed::<f32>::new(coeffs),
+            coeffs,
             enabled: false,
         }
     }
@@ -104,6 +108,7 @@ impl BiquadFilter {
         )
         .unwrap();
         self.filter.update_coefficients(coeffs);
+        self.coeffs = coeffs;
     }
 
     #[inline]
@@ -178,6 +183,27 @@ impl StereoParametricEQ {
         for band in self.bands_right.iter_mut() {
             band.reset_state();
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn calculate_frequency_response(&self, sample_rate: f32, frequencies: &[f32]) -> Vec<f32> {
+        let mut response = vec![1.0; frequencies.len()];
+        for (i, &freq) in frequencies.iter().enumerate() {
+            let mut band_response = Complex::new(1.0, 0.0);
+            for band in &self.bands_left {
+                if band.enabled {
+                    let coeffs = band.coeffs;
+                    let omega = 2.0 * std::f32::consts::PI * freq / sample_rate;
+                    let z = Complex::from_polar(1.0, -omega);
+                    let numerator = coeffs.b0 + coeffs.b1 * z.powi(-1) + coeffs.b2 * z.powi(-2);
+                    let denominator = 1.0 + coeffs.a1 * z.powi(-1) + coeffs.a2 * z.powi(-2);
+                    let r = numerator / denominator;
+                    band_response *= r;
+                }
+            }
+            response[i] = band_response.norm();
+        }
+        response
     }
 }
 
