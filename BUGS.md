@@ -112,8 +112,26 @@ This document tracks known bugs, limitations, and the overall development status
     3.  **Misunderstanding of State vs. Parameters:** An attempt to change the file path from a persistent `Arc<RwLock<String>>` to a `StringParam` was incorrect. **Lesson:** As documented previously, `Param` types are for host-automatable values. Simple persistent state that is not automatable should use the `#[persist]` attribute on a standard thread-safe type.
 *   **Final Lesson:** GUI integrations are a major source of complexity and failure. The path forward requires a slow, careful, example-driven approach. The immediate problem (the crash) is resolved by removing the call to `rfd`, but a robust file dialog solution will require finding a compatible version of `egui-file-dialog` or writing a custom implementation that respects the `nih-plug` architecture.
 
-### `egui` Dependency Version Conflict (Resolved)
+### Navigating `nih-plug` Git Dependencies & Feature Flags (Resolved)
 
+*   **Original Problem:** A simple desire to upgrade the `egui` version to `0.32.0` led to a cascade of build failures. The core of the problem was a deep misunderstanding of how the `nih-plug` ecosystem handles dependencies and features, compounded by misleading information in previous "Lessons Learned" entries.
+*   **Root Cause Analysis:** The failure was a result of several incorrect assumptions:
+    1.  **`crates.io` vs. Git:** The initial assumption was that `nih-plug` and its related crates were on `crates.io`. This was false. They are exclusively git-based dependencies.
+    2.  **Branch Naming:** Attempts to fix the git dependency by guessing branch names (`master`, `main`) failed because the repository's default branch was not what was expected, and cargo's cache was holding onto old, incorrect information.
+    3.  **Feature Flag Location:** A key error was trying to enable the `gui` feature on the main `nih_plug` crate. The `gui` feature does not exist there. It is a feature of the `nih_plug_egui` crate, which is enabled by the project's own `ui` feature.
+    4.  **Version Mismatches:** The final blocker was a version mismatch between the `egui` version required by the `nih-plug` git commit and the version required by the `egui-file-dialog` crate.
+*   **Resolution (The Correct Procedure):**
+    1.  **Use a Specific Commit Hash:** The most robust way to specify a git dependency is with a full commit hash in the `rev` field. This avoids all ambiguity with branch names. The command `git ls-remote https://github.com/robbert-vdh/nih-plug.git HEAD` was used to find the latest commit hash.
+    2.  **Correct Feature Enablement:** The `Cargo.toml` was corrected to enable features on the correct crates. The `nih-plug` dependency itself only needs the `standalone` feature. The project's own `[features]` section defines the `ui` feature, which in turn enables the optional `nih_plug_egui` dependency.
+    3.  **Align Dependency Versions:** The `egui` version conflict was resolved by downgrading `egui-file-dialog` to a version (`0.10.0`) that was compatible with the version of `egui` used by the `nih-plug` git commit. The explicit dependency on `egui` was removed from `Cargo.toml`, allowing the version to be determined by `nih_plug_egui`.
+*   **Definitive Lessons Learned:**
+    1.  **`nih-plug` is Git-Only:** Acknowledge that `nih-plug` and its ecosystem are not on `crates.io`. All related dependencies must be handled as `git` dependencies.
+    2.  **Use `rev` with a Full Commit Hash:** When using a `git` dependency, always prefer specifying a full commit hash with `rev = "..."`. This is the most stable and reproducible method. Use `git ls-remote` to find the latest hash.
+    3.  **Features Belong to Specific Crates:** Understand where features are defined. The `gui` functionality comes from `nih_plug_egui`, not `nih_plug`. Enable optional dependencies through your own crate's `[features]` section.
+    4.  **`cargo tree` is Your Best Friend:** When facing dependency conflicts, `cargo tree -i <crate_name>` is the essential tool to see which versions are being pulled in and by which other dependencies. This is the key to resolving version mismatch errors.
+
+### `egui` Dependency Version Conflict (Resolved)
+*   **Note:** This entry is now considered partially misleading. The core lesson about using `cargo tree` is correct, but the resolution incorrectly implies that `nih-plug` is on `crates.io`. The new entry, "Navigating `nih-plug` Git Dependencies & Feature Flags", contains the complete and correct procedure.
 *   **Original Problem:** After deciding to use `egui-file-dialog`, the build failed with dozens of errors related to mismatched types and missing methods. The root cause was a dependency conflict: `nih-plug` (from git) used `egui` v0.31.1, while the chosen version of `egui-file-dialog` (v0.5.0) used `egui` v0.27.2.
 *   **Resolution:**
     1.  Used `cargo tree` to explicitly identify the two conflicting `egui` versions.

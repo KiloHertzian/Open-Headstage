@@ -11,6 +11,10 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Current Priority
 
+- [ ] **[UI-REFINEMENT] Refactor `with_layer_id`:**
+  - **Description:** Replace the deprecated `with_layer_id` with the modern `ui.scope()` pattern in `src/lib.rs` to remove the compilation warning.
+  - **Priority:** Medium.
+
 - [ ] **[UI-REFINEMENT] Ameliorate the GUI:**
   - **Description:** Improve the layout, clarity, and overall user experience of the plugin's graphical interface.
   - **Priority:** Highest.

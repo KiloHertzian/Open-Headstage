@@ -10,8 +10,8 @@ rust-version = "1.87"
 # We are focusing on CLAP as the primary plugin format, which uses the permissive MIT license.
 # To re-enable VST3, you would need to add "vst3" to the features list below and accept
 # that the entire project must be licensed under GPLv3.
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default-features = false, features = ["standalone"] }
-nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "ecfd6322c776d9f0373d31758976c2353c162737", default-features = false, features = ["standalone"] }
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "ecfd6322c776d9f0373d31758976c2353c162737", optional = true }
 egui-file-dialog = { version = "0.10.0", optional = true }
 dirs = "5.0.1"
 

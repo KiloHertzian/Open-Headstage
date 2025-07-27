@@ -1334,9 +1334,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.172"
+version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
+checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
 
 [[package]]
 name = "libloading"
@@ -1553,7 +1553,7 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#ecfd6322c776d9f0373d31758976c2353c162737"
+source = "git+https://github.com/robbert-vdh/nih-plug.git?rev=ecfd6322c776d9f0373d31758976c2353c162737#ecfd6322c776d9f0373d31758976c2353c162737"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -1588,7 +1588,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#ecfd6322c776d9f0373d31758976c2353c162737"
+source = "git+https://github.com/robbert-vdh/nih-plug.git?rev=ecfd6322c776d9f0373d31758976c2353c162737#ecfd6322c776d9f0373d31758976c2353c162737"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1598,7 +1598,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_egui"
 version = "0.0.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#ecfd6322c776d9f0373d31758976c2353c162737"
+source = "git+https://github.com/robbert-vdh/nih-plug.git?rev=ecfd6322c776d9f0373d31758976c2353c162737#ecfd6322c776d9f0373d31758976c2353c162737"
 dependencies = [
  "baseview 0.1.0 (git+https://github.com/RustAudio/baseview.git?rev=9a0b42c09d712777b2edb4c5e0cb6baf21e988f0)",
  "crossbeam",

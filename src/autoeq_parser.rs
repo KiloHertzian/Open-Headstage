@@ -33,6 +33,7 @@ pub struct ParsedEqBand {
 
 #[derive(Debug, Clone)]
 pub struct BandSetting {
+    pub enabled: bool,
     pub filter_type: FilterType,
     pub frequency: f32,
     pub q: f32,
@@ -56,6 +57,7 @@ pub fn parse_autoeq_csv(path: &Path) -> Result<Vec<BandSetting>, Box<dyn Error>>
     for result in rdr.deserialize() {
         let record: ParsedEqBand = result?;
         let band_setting = BandSetting {
+            enabled: true,
             filter_type: map_filter_type(&record.filter_type_str)?,
             frequency: record.frequency,
             q: record.q,
