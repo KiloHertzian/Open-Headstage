@@ -4,16 +4,26 @@ This document tracks known bugs, limitations, and the overall development status
 
 ---
 
-## Active Bugs
-
-- **[RUNTIME] JACK Connection Errors on Startup:**
-  - **Description:** The standalone application consistently fails to connect to the JACK audio server on startup, logging multiple errors like `Cannot connect to server socket err = No such file or directory` and `jack server is not running or cannot be started`. It successfully falls back to the ALSA backend, but this indicates a potential environment or configuration issue.
-  - **Impact:** Prevents audio processing in standalone mode for users who rely on JACK, hindering testing and debugging for that audio subsystem.
-  - **Next Steps:** Investigate whether the JACK server is running correctly on the system before the application starts. This may be an environment issue rather than a code issue.
-
----
-
 ## Resolved Issues & Lessons Learned
+
+### UI Layout Refactoring (Resolved)
+
+*   **Original Problem:** A request was made to change the slide-out PEQ panel into a permanently visible, static part of the main UI, preserving the expanded layout and proportions.
+*   **Root Cause Analysis:** The initial attempt involved a significant refactoring of the `egui` layout from a `CentralPanel` with a conditional `SidePanel` to a horizontal layout containing two distinct containers. This approach, while logical, failed to replicate the exact sizing and proportions of the original `SidePanel`, resulting in a visually incorrect layout that was rejected. A second attempt to simply force the `SidePanel` to be visible by default also failed to produce the desired outcome.
+*   **Resolution:** The most effective and simplest solution was to revert all layout changes to the original, working implementation. The code was restored to the state with a conditional `SidePanel`, and the user's request was re-evaluated and satisfied by ensuring the original, preferred behavior was stable.
+*   **Lesson Learned:**
+    1.  **Preserve Working States:** When a UI layout is considered good, preserve it. Drastic refactoring to achieve a seemingly small change can have unintended consequences on proportions and aesthetics. `git restore` is a critical tool for quickly reverting failed experiments.
+    2.  **The Simplest Change is Often Best:** The goal was to have the panel always visible. The initial thought was a major layout refactor. However, a much simpler (though ultimately also reverted) approach was to just change the default state of the boolean controlling the panel's visibility. When a complex solution fails, reconsider the simplest possible approach.
+    3.  **User Feedback is Paramount for UI:** UI/UX is subjective. A technically correct implementation may not be what the user wants. The "NO GO" from the user was a clear signal to stop the current path and revert to a known-good state before trying a different approach.
+
+### JACK Connection Failure (Resolved)
+
+*   **Original Problem:** The standalone application would consistently fail to connect to the JACK audio server on startup, logging errors like `Cannot connect to server socket`.
+*   **Root Cause Analysis:** The issue was confirmed to be an environment problem, not a bug in the application's code. The JACK audio server was not running on the host system. The application was correctly detecting this and falling back to the ALSA backend as intended.
+*   **Resolution:** The issue is resolved by ensuring the JACK server is running before launching the application. This can be done using a tool like `qjackctl` or by running `jackd` from the command line. No code changes were necessary.
+*   **Lesson Learned:**
+    1.  **Verify the Environment First:** When an application fails to connect to an external service, the first step is to verify that the service is running and accessible. In this case, a simple `pgrep jackd` confirmed the absence of the JACK server.
+    2.  **Fallback Mechanisms are Working:** The application's ability to gracefully fall back to the ALSA backend when JACK is unavailable demonstrates that its audio backend handling is robust. The error messages were not a sign of a crash, but of a successful and informative failure detection.
 
 ### `egui` Slider Reset Logic (Resolved)
 
@@ -73,7 +83,7 @@ This document tracks known bugs, limitations, and the overall development status
     3.  **Safe Task Execution:** Upon receiving a `Task` message, the `process()` method uses its `ProcessContext` to safely execute the task on a background thread via `context.execute_background(task)`. This is the *only* correct way to initiate a background task from a GUI interaction.
     4.  **Result Handling (Polling, not Pushing):** To return data (like parsed EQ settings) to the GUI without a direct callback, an `Arc<Mutex<Option<Vec<BandSetting>>>>` is used. This `Arc<Mutex<>>` is cloned and shared between the `EditorState` and the `Task` itself.
         *   The `task_executor` (background thread) performs the work, locks the mutex, and places the result inside the `Option`.
-        *   The `editor` closure (GUI thread) polls this `Arc<Mutex<>>` on every redraw. It uses `lock().take()` to check for and retrieve the result. This polling mechanism decoupples the background task from the GUI redraw, breaking the recursion. The GUI pulls data when it's ready, rather than having the data pushed to it.
+        *   The `editor` closure (GUI thread) polls this `Arc<Mutex<>>` on every redraw. It uses `lock().take()` to check for and retrieve the result. This polling mechanism decouples the background task from the GUI redraw, breaking the recursion. The GUI pulls data when it's ready, rather than having the data pushed to it.
 *   **Lesson Learned:**
     1.  **The `nih-plug` Threading Pattern is Strict:** The only sanctioned way to trigger a background task from a GUI action is: **GUI -> Audio Thread -> Background**. The GUI must send a message to the audio thread, and the audio thread must use its `ProcessContext` to launch the task. There are no shortcuts.
     2.  **Avoid Direct Callbacks from Background to GUI:** Sending a message or using a direct callback from a background task to the GUI is an anti-pattern that can cause event loops. The `clap-validator` is sensitive to this and will correctly flag it as recursion.

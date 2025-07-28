@@ -13,6 +13,11 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Current Priority
 
+- [x] **[UI-REFACTOR] Restore Original UI Layout:**
+    - **Description:** After attempting to make the PEQ panel a permanent part of the UI, the layout was disrupted. The task was to revert the changes and restore the original, preferred layout with the slide-out panel.
+    - **Priority:** Highest.
+    - **Status:** DONE.
+
 - [x] **[BUG-FIX] Fix Slider Double-Click Reset:**
     - **Description:** The double-click-to-reset functionality on the main sliders (Master Output, Azimuth, Elevation) is not working as intended. This needs to be fixed and verified.
     - **Priority:** Highest.
@@ -36,10 +41,6 @@ This file tracks the development tasks for the Open Headstage project.
           2.  **Simplify to the Intended Path:** The repeated failures and increasing complexity of the manual solution were a strong signal that the approach was wrong. The solution was to simplify by removing all the manual code and reverting to the single, framework-provided component. If a solution feels like you're fighting the tool, you probably are.
           3.  **Check the Constructor Signature:** A quick look at the `ParamSlider` source or documentation would have revealed the correct `for_param(&param, &setter)` constructor, preventing the final build failure. The compiler's error message was the ultimate guide here.
       ```
-
-- [ ] **[RUNTIME-BUG] Investigate JACK Connection Errors:**
-    - **Description:** The standalone application fails to connect to the JACK audio server on startup.
-    - **Priority:** Low (as it may be an environment issue).
 
 ---
 ## Backlog & Research Tasks
@@ -73,10 +74,6 @@ This file tracks the development tasks for the Open Headstage project.
 - [ ] **[BUG-FIX] Fix Slider Double-Click Reset:**
     - **Description:** The double-click-to-reset functionality on the main sliders (Master Output, Azimuth, Elevation) is not working as intended. This needs to be fixed and verified.
     - **Priority:** Highest.
-
-- [ ] **[RUNTIME-BUG] Investigate JACK Connection Errors:**
-    - **Description:** The standalone application fails to connect to the JACK audio server on startup.
-    - **Priority:** Low (as it may be an environment issue).
 
 ---
 ## Backlog & Research Tasks
@@ -270,7 +267,7 @@ This file tracks the development tasks for the Open Headstage project.
 ## Phase 9: Process Improvement & Refinement
 
 - [ ] **[META-1] Review and Canonize GEMINI.md:**
-  - **Description:** Under strict user supervision, review the `GEMINI.md` file to identify core, immutable principles and enclose them in `<canon>` blocks.
+  - **Description:** Under strict user supervision, review the `GEMINI.md` file to.
   - **Goal:** Solidify the operational framework and ensure long-term stability of the agent's core directives.
 - [ ] **[META] Phase Review:** Document key decisions and lessons learned in `BUGS.md`.
 
