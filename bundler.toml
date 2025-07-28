@@ -1,0 +1,8 @@
+[open-headstage]
+name = "Open Headstage"
+version = "0.1.0"
+vendor = "Open Source Community"
+description = "Binaural speaker simulation plugin"
+homepage = "http://example.com"
+email = "info@example.com"
+tags = ["AudioEffect", "Stereo", "Spatial"]
