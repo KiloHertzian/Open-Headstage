@@ -2021,11 +2021,14 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "biquad",
+ "cpal",
  "criterion",
  "crossbeam-channel",
  "csv",
  "dirs",
  "egui-file-dialog",
+ "log",
+ "nih_log",
  "nih_plug",
  "nih_plug_egui",
  "num-complex",
@@ -2033,6 +2036,7 @@ dependencies = [
  "rand",
  "rustfft",
  "serde",
+ "serde_json",
  "strum",
  "strum_macros",
 ]
