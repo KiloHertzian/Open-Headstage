@@ -1,0 +1,12 @@
+/home/canjung/Projects/Open-Headstage/xtask/target/debug/deps/libvst3_com-dccf32dbb0ffc356.rmeta: /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/canjung/Projects/Open-Headstage/xtask/target/debug/deps/libvst3_com-dccf32dbb0ffc356.rlib: /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/canjung/Projects/Open-Headstage/xtask/target/debug/deps/vst3_com-dccf32dbb0ffc356.d: /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs:
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs:
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs:
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs:
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs:
+/home/canjung/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs:
