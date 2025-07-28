@@ -103,6 +103,9 @@ struct OpenHeadstageParams {
     #[persist = "sofa-path"]
     pub sofa_file_path: Arc<RwLock<String>>,
 
+    #[id = "bypass"]
+    pub master_bypass: BoolParam,
+
     #[id = "out_gain"]
     pub output_gain: FloatParam,
 
@@ -128,6 +131,7 @@ impl Default for OpenHeadstageParams {
         Self {
             editor_state: EguiState::from_size(1380, 805),
             sofa_file_path: Arc::new(RwLock::new(String::new())),
+            master_bypass: BoolParam::new("Bypass", false),
             output_gain: FloatParam::new(
                 "Output Gain",
                 util::db_to_gain(0.0),
@@ -494,6 +498,65 @@ impl Plugin for OpenHeadstagePlugin {
                     )
                     .default_open(true)
                     .show(ui, |ui| {
+                        let mut bypass_state = params.master_bypass.value();
+                        if ui.toggle_value(&mut bypass_state, "Bypass").changed() {
+                            setter.begin_set_parameter(&params.master_bypass);
+                            setter.set_parameter(&params.master_bypass, bypass_state);
+                            setter.end_set_parameter(&params.master_bypass);
+                        }
+                        if ui.button("Reset to Default").clicked() {
+                            let default_params = OpenHeadstageParams::default();
+
+                            setter.begin_set_parameter(&params.master_bypass);
+                            setter.set_parameter(&params.master_bypass, default_params.master_bypass.default_plain_value());
+                            setter.end_set_parameter(&params.master_bypass);
+
+                            setter.begin_set_parameter(&params.output_gain);
+                            setter.set_parameter(&params.output_gain, default_params.output_gain.default_plain_value());
+                            setter.end_set_parameter(&params.output_gain);
+
+                            setter.begin_set_parameter(&params.speaker_azimuth_left);
+                            setter.set_parameter(&params.speaker_azimuth_left, default_params.speaker_azimuth_left.default_plain_value());
+                            setter.end_set_parameter(&params.speaker_azimuth_left);
+
+                            setter.begin_set_parameter(&params.speaker_elevation_left);
+                            setter.set_parameter(&params.speaker_elevation_left, default_params.speaker_elevation_left.default_plain_value());
+                            setter.end_set_parameter(&params.speaker_elevation_left);
+
+                            setter.begin_set_parameter(&params.speaker_azimuth_right);
+                            setter.set_parameter(&params.speaker_azimuth_right, default_params.speaker_azimuth_right.default_plain_value());
+                            setter.end_set_parameter(&params.speaker_azimuth_right);
+
+                            setter.begin_set_parameter(&params.speaker_elevation_right);
+                            setter.set_parameter(&params.speaker_elevation_right, default_params.speaker_elevation_right.default_plain_value());
+                            setter.end_set_parameter(&params.speaker_elevation_right);
+
+                            setter.begin_set_parameter(&params.eq_enable);
+                            setter.set_parameter(&params.eq_enable, default_params.eq_enable.default_plain_value());
+                            setter.end_set_parameter(&params.eq_enable);
+
+                            for (i, band) in params.eq_bands.iter().enumerate() {
+                                setter.begin_set_parameter(&band.enabled);
+                                setter.set_parameter(&band.enabled, default_params.eq_bands[i].enabled.default_plain_value());
+                                setter.end_set_parameter(&band.enabled);
+
+                                setter.begin_set_parameter(&band.filter_type);
+                                setter.set_parameter(&band.filter_type, default_params.eq_bands[i].filter_type.default_plain_value());
+                                setter.end_set_parameter(&band.filter_type);
+
+                                setter.begin_set_parameter(&band.frequency);
+                                setter.set_parameter(&band.frequency, default_params.eq_bands[i].frequency.default_plain_value());
+                                setter.end_set_parameter(&band.frequency);
+
+                                setter.begin_set_parameter(&band.q);
+                                setter.set_parameter(&band.q, default_params.eq_bands[i].q.default_plain_value());
+                                setter.end_set_parameter(&band.q);
+
+                                setter.begin_set_parameter(&band.gain);
+                                setter.set_parameter(&band.gain, default_params.eq_bands[i].gain.default_plain_value());
+                                setter.end_set_parameter(&band.gain);
+                            }
+                        }
                         ui.label("Output Gain");
                         ui.add(widgets::ParamSlider::for_param(&params.output_gain, setter));
                     });
@@ -753,39 +816,41 @@ impl Plugin for OpenHeadstagePlugin {
             nih_log!("Audio processing started.");
         }
 
-        let _az_l = self.params.speaker_azimuth_left.smoothed.next();
-        let _el_l = self.params.speaker_elevation_left.smoothed.next();
-        let _az_r = self.params.speaker_azimuth_right.smoothed.next();
-        let _el_r = self.params.speaker_elevation_right.smoothed.next();
+        if !self.params.master_bypass.value() {
+            let _az_l = self.params.speaker_azimuth_left.smoothed.next();
+            let _el_l = self.params.speaker_elevation_left.smoothed.next();
+            let _az_r = self.params.speaker_azimuth_right.smoothed.next();
+            let _el_r = self.params.speaker_elevation_right.smoothed.next();
 
-        let [left, right] = buffer.as_slice() else {
-            return ProcessStatus::Error("Mismatched channel count");
-        };
+            let [left, right] = buffer.as_slice() else {
+                return ProcessStatus::Error("Mismatched channel count");
+            };
 
-        if self.params.eq_enable.value() {
-            for (i, band_params) in self.params.eq_bands.iter().enumerate() {
-                let band_config = BandConfig {
-                    filter_type: band_params.filter_type.value(),
-                    center_freq: band_params.frequency.smoothed.next(),
-                    q: band_params.q.smoothed.next(),
-                    gain_db: band_params.gain.smoothed.next(),
-                    enabled: band_params.enabled.value(),
-                };
-                self.parametric_eq
-                    .update_band_coeffs(i, self.current_sample_rate, &band_config);
+            if self.params.eq_enable.value() {
+                for (i, band_params) in self.params.eq_bands.iter().enumerate() {
+                    let band_config = BandConfig {
+                        filter_type: band_params.filter_type.value(),
+                        center_freq: band_params.frequency.smoothed.next(),
+                        q: band_params.q.smoothed.next(),
+                        gain_db: band_params.gain.smoothed.next(),
+                        enabled: band_params.enabled.value(),
+                    };
+                    self.parametric_eq
+                        .update_band_coeffs(i, self.current_sample_rate, &band_config);
+                }
+                self.parametric_eq.process_block(left, right);
             }
-            self.parametric_eq.process_block(left, right);
-        }
 
-        let input_l = left.to_vec();
-        let input_r = right.to_vec();
-        self.convolution_engine
-            .process_block(&input_l, &input_r, left, right);
+            let input_l = left.to_vec();
+            let input_r = right.to_vec();
+            self.convolution_engine
+                .process_block(&input_l, &input_r, left, right);
 
-        let master_gain = self.params.output_gain.smoothed.next();
-        for mut channel_samples in buffer.iter_samples() {
-            for sample in channel_samples.iter_mut() {
-                *sample *= master_gain;
+            let master_gain = self.params.output_gain.smoothed.next();
+            for mut channel_samples in buffer.iter_samples() {
+                for sample in channel_samples.iter_mut() {
+                    *sample *= master_gain;
+                }
             }
         }
 

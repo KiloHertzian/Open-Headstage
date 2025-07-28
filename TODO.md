@@ -45,16 +45,24 @@ This file tracks the development tasks for the Open Headstage project.
 ---
 ## Backlog & Research Tasks
 
-- [ ] **[RESEARCH] Custom Window Decorations:**
-  - **Description:** Research and potentially implement custom window decorations (minimize, maximize, close) to replace the OS title bar.
+- [ ] **[FEATURE] Implement Custom Window Decorations:**
+  - **Description:** Implement custom window decorations (minimize, maximize, close) to replace the OS title bar. Research is complete; the plan is to use the `egui_custom_frame` crate.
   - **Priority:** Medium.
-  - **Considerations:** Must ensure cross-platform compatibility (Linux/Plasma, Windows, Mac) and aim for a simple implementation if possible.
-- [ ] **[FEATURE] Master Bypass and Reset:**
-    - **Description:** Implement global controls for bypassing and resetting the plugin.
-    - **Priority:** Medium.
-    - **Sub-tasks:**
-        - [ ] **Master Bypass:** Add a master bypass button under the Master Output section. Requires research into click/pop-free audio muting techniques.
-        - [ ] **Reset to Default:** Add a button to reset all plugin parameters to their initial "out-of-the-box" state without deleting user profiles or presets.
+  - **Sub-tasks:**
+    - [ ] Add `egui_custom_frame` to `Cargo.toml`.
+    - [ ] Refactor the editor UI in `src/lib.rs` to be wrapped by `CustomFrame::show()`.
+    - [ ] Ensure cross-platform compatibility and test on Linux, Windows, and Mac.
+- [x] **[FEATURE] Master Bypass and Reset:**
+      - **Description:** Implement global controls for bypassing and resetting the plugin.
+      - **Status:** UI and reset logic are verified and working. The bypass toggle requires an audio test to be fully confirmed. The reset logic correctly ignores the PEQ panel state, which is the desired behavior.
+
+- [ ] **[UI-REFINEMENT] Relocate PEQ Apply/Cancel Buttons:**
+    - **Description:** The "Apply" and "Cancel" buttons in the PEQ panel are obscured by the EQ curve visualizer. Relocate them to a new, dedicated area to the right of the band controls to ensure they are always visible.
+    - **Priority:** High.
+
+- [ ] **[FEATURE] Implement Audio Backend Selector:**
+    - **Description:** Implement a UI control to allow the user to select the audio backend (e.g., JACK, ALSA, PipeWire) for the standalone application. This is a prerequisite for audio testing on different systems.
+    - **Priority:** High.
 
 <canon>
 **Directive:** This document is a living history of the project. Completed tasks and phases must never be removed. They serve as a record of progress and decision-making.
@@ -86,17 +94,25 @@ This file tracks the development tasks for the Open Headstage project.
         - [ ] **Target Curve Loading:** Add a button to the EQ editor to load target curves from text/CSV files using `egui-file-dialog` and a custom parser.
         - [ ] **Target Curve Visualization:** Extend the EQ graph to draw the loaded target curve.
 
-- [ ] **[RESEARCH] Custom Window Decorations:**
-  - **Description:** Research and potentially implement custom window decorations (minimize, maximize, close) to replace the OS title bar.
+- [ ] **[FEATURE] Implement Custom Window Decorations:**
+  - **Description:** Implement custom window decorations (minimize, maximize, close) to replace the OS title bar. Research is complete; the plan is to use the `egui_custom_frame` crate.
   - **Priority:** Medium.
-  - **Considerations:** Must ensure cross-platform compatibility (Linux/Plasma, Windows, Mac) and aim for a simple implementation if possible.
+  - **Sub-tasks:**
+    - [ ] Add `egui_custom_frame` to `Cargo.toml`.
+    - [ ] Refactor the editor UI in `src/lib.rs` to be wrapped by `CustomFrame::show()`.
+    - [ ] Ensure cross-platform compatibility and test on Linux, Windows, and Mac.
 
-- [ ] **[FEATURE] Master Bypass and Reset:**
-    - **Description:** Implement global controls for bypassing and resetting the plugin.
-    - **Priority:** Medium.
-    - **Sub-tasks:**
-        - [ ] **Master Bypass:** Add a master bypass button under the Master Output section. Requires research into click/pop-free audio muting techniques.
-        - [ ] **Reset to Default:** Add a button to reset all plugin parameters to their initial "out-of-the-box" state without deleting user profiles or presets.
+- [x] **[FEATURE] Master Bypass and Reset:**
+      - **Description:** Implement global controls for bypassing and resetting the plugin.
+      - **Status:** UI and reset logic are verified and working. The bypass toggle requires an audio test to be fully confirmed. The reset logic correctly ignores the PEQ panel state, which is the desired behavior.
+
+- [ ] **[UI-REFINEMENT] Relocate PEQ Apply/Cancel Buttons:**
+    - **Description:** The "Apply" and "Cancel" buttons in the PEQ panel are obscured by the EQ curve visualizer. Relocate them to a new, dedicated area to the right of the band controls to ensure they are always visible.
+    - **Priority:** High.
+
+- [ ] **[FEATURE] Implement Audio Backend Selector:**
+    - **Description:** Implement a UI control to allow the user to select the audio backend (e.g., JACK, ALSA, PipeWire) for the standalone application. This is a prerequisite for audio testing on different systems.
+    - **Priority:** High.
 
 - [ ] **[BUILD-4] Diagnose DAW Plugin Detection Failure:**
   - **Description:** With a stable standalone binary now working, resume the diagnostic protocol to determine why the CLAP plugin is not being detected by hosts like Carla and Reaper.
