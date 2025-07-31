@@ -38,51 +38,111 @@ This project is developed as a **standalone application first**, ensuring a stab
 
 ## Signal Path & Architecture
 
-The application's audio processing is designed for high-fidelity and low latency, following a clean and logical signal path within the standalone host.
+The application is designed with a clear separation between the user interface, background data loading, and the real-time audio processing thread to ensure a responsive and glitch-free experience.
+
+### High-Level Architecture
+
+This diagram shows the main components of the Open Headstage application and how they interact with the user and the underlying system.
 
 ```mermaid
 graph TD
-    %% ---- User and System ----
-    User["fa:fa-user User"]
-    SystemAudio["fa:fa-cogs System Audio (JACK, ALSA, etc.)"]
-
-    %% ---- Application Boundary ----
-    subgraph "Open Headstage Standalone Application"
+    subgraph "External Interactions"
         direction LR
-        UI["fa:fa-desktop User Interface (egui)"]
-        Params["fa:fa-sliders-h App Parameters"]
-        SofaLoader["fa:fa-file-audio SOFA File Loader"]
-        AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
+        User([fa:fa-user User])
+        FileSystem([fa:fa-folder-open File System])
+        AudioOS[("fa:fa-cogs<br>Audio OS<br>(JACK, ALSA, etc.)")]
+    end
 
-        subgraph "Real-time Audio Signal Path"
+    subgraph "Open Headstage Application"
+        direction TB
+        
+        subgraph "UI & Control Plane (Main Thread)"
             direction LR
-            Input["fa:fa-volume-down Stereo Input"] --> EQ["fa:fa-wave-square Headphone EQ"] --> Conv["fa:fa-headphones-alt Binaural Convolution"] --> Gain["fa:fa-volume-up Output Gain"] --> Output["fa:fa-headphones Stereo Output"]
+            UI(fa:fa-desktop UI<br>egui)
+            PluginState(fa:fa-sliders-h Plugin State<br>Parameters)
+        end
+
+        subgraph "Data Loading (Background Threads)"
+            direction LR
+            SofaLoader(fa:fa-file-audio SOFA Loader)
+            AutoEQLoader(fa:fa-file-import AutoEQ Loader)
+        end
+
+        subgraph "Real-time Audio Engine (Audio Thread)"
+            direction LR
+            AudioInput[("fa:fa-volume-down<br>Stereo In")] --> AudioEngine("fa:fa-headphones-alt<br>DSP Core") --> AudioOutput[("fa:fa-volume-up<br>Stereo Out")]
         end
     end
 
-    %% ---- Connections ----
+    %% --- Connections ---
     User -- "Controls" --> UI
-    UI -- "Modifies & Triggers" --> Params
-    UI -- "Triggers" --> SofaLoader
-    UI -- "Triggers" --> AutoEqLoader
+    UI -- "Manages" --> PluginState
+    
+    UI -- "Triggers Load" -.-> SofaLoader
+    UI -- "Triggers Load" -.-> AutoEQLoader
 
-    Params -- "Controls" --> EQ
-    Params -- "Controls" --> Conv
-    Params -- "Controls" --> Gain
-    SofaLoader -- "Provides HRTFs" --> Conv
-    AutoEqLoader -- "Provides Settings" --> EQ
+    FileSystem -- "Reads .sofa file" -.-> SofaLoader
+    FileSystem -- "Reads .txt file" -.-> AutoEQLoader
 
-    SystemAudio -- "Provides" --> Input
-    Output -- "Sends to" --> SystemAudio
+    SofaLoader -- "Provides HRTFs" -.-> AudioEngine
+    AutoEQLoader -- "Provides EQ settings" -.-> AudioEngine
+    
+    PluginState -- "Configures" --> AudioEngine
 
-    %% ---- Styling ----
-    classDef dsp fill:#1f2937,stroke:#60a5fa,color:#e5e7eb
+    AudioOS -- "Provides" --> AudioInput
+    AudioOutput -- "Sends to" --> AudioOS
+
+    %% --- Styling ---
+    classDef external fill:#111827,stroke:#9ca3af,color:#e5e7eb
+    classDef ui fill:#0d253f,stroke:#3b82f6,color:#e5e7eb
+    classDef data fill:#36301f,stroke:#f59e0b,color:#e5e7eb
+    classDef realtime fill:#1f3c39,stroke:#10b981,color:#e5e7eb
+
+    class User,FileSystem,AudioOS external
+    class UI,PluginState ui
+    class SofaLoader,AutoEQLoader data
+    class AudioInput,AudioEngine,AudioOutput,AudioEngine realtime
+```
+
+### Real-time Audio Signal Flow
+
+This diagram details the specific stages of the real-time digital signal processing (DSP) chain that your audio passes through.
+
+```mermaid
+graph LR
+    subgraph "Real-time Audio Signal Flow"
+        direction LR
+        Input([fa:fa-volume-down<br>Stereo Input])
+        Output([fa:fa-volume-up<br>Stereo Output])
+        
+        subgraph "DSP Chain"
+            direction LR
+            EQ(fa:fa-wave-square<br>10-Band<br>Parametric EQ) --> Convolution(fa:fa-headphones-alt<br>Binaural<br>Convolution) --> Gain(fa:fa-sliders-h<br>Output<br>Gain)
+        end
+
+        Input --> EQ
+        Gain --> Output
+    end
+
+    subgraph "Control & Data"
+        direction TB
+        PluginState(fa:fa-sliders-h<br>Plugin Parameters)
+        HRTFData(fa:fa-file-audio<br>HRTF Data)
+    end
+
+    PluginState -- "EQ Settings" --> EQ
+    PluginState -- "Speaker Angles" --> Convolution
+    PluginState -- "Gain Level" --> Gain
+    HRTFData -- "HRIRs" --> Convolution
+
+    %% --- Styling ---
     classDef io fill:#111827,stroke:#9ca3af,color:#e5e7eb
-    classDef control fill:#111827,stroke:#9ca3af,color:#e5e7eb
+    classDef dsp fill:#1f2937,stroke:#60a5fa,color:#e5e7eb
+    classDef control fill:#36301f,stroke:#f59e0b,color:#e5e7eb
 
-    class Input,Output,SystemAudio io
-    class EQ,Conv,Gain dsp
-    class UI,Params,SofaLoader,AutoEqLoader,User control
+    class Input,Output io
+    class EQ,Convolution,Gain dsp
+    class PluginState,HRTFData control
 ```
 
 ## Getting Started
