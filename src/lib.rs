@@ -129,22 +129,49 @@ pub struct OpenHeadstageParams {
     pub eq_bands: Vec<EqBandParams>,
 }
 
-impl Default for OpenHeadstageParams {
-    fn default() -> Self {
+impl OpenHeadstageParams {
+    fn new(config: StandaloneConfig) -> Self {
+        let mut eq_bands = Vec::new();
+        for i in 0..NUM_EQ_BANDS {
+            let band_config = config.eq_bands.get(i).cloned().unwrap_or_default();
+            eq_bands.push(EqBandParams {
+                enabled: BoolParam::new("Enabled", band_config.enabled),
+                filter_type: EnumParam::new("Type", band_config.filter_type),
+                frequency: FloatParam::new(
+                    "Frequency",
+                    band_config.frequency,
+                    FloatRange::Skewed {
+                        min: 20.0,
+                        max: 20000.0,
+                        factor: FloatRange::skew_factor(-2.0),
+                    },
+                )
+                .with_unit(" Hz")
+                .with_smoother(SmoothingStyle::Logarithmic(50.0)),
+                q: FloatParam::new("Q", band_config.q, FloatRange::Linear { min: 0.1, max: 10.0 })
+                    .with_smoother(SmoothingStyle::Linear(50.0)),
+                gain: FloatParam::new(
+                    "Gain",
+                    band_config.gain,
+                    FloatRange::Linear {
+                        min: -16.0,
+                        max: 16.0,
+                    },
+                )
+                .with_unit(" dB")
+                .with_smoother(SmoothingStyle::Linear(50.0)),
+            });
+        }
+
         Self {
             editor_state: EguiState::from_size(1380, 805),
-            sofa_file_path: Arc::new(RwLock::new(String::new())),
-            audio_host: Arc::new(RwLock::new(cpal::default_host().id().name().to_string())),
-            audio_device: Arc::new(RwLock::new(
-                cpal::default_host()
-                    .default_output_device()
-                    .map(|d| d.name().unwrap_or_default())
-                    .unwrap_or_default(),
-            )),
-            master_bypass: BoolParam::new("Bypass", false),
+            sofa_file_path: Arc::new(RwLock::new(config.sofa_file_path)),
+            audio_host: Arc::new(RwLock::new(config.audio_host)),
+            audio_device: Arc::new(RwLock::new(config.audio_device)),
+            master_bypass: BoolParam::new("Bypass", config.master_bypass),
             output_gain: FloatParam::new(
                 "Output Gain",
-                util::db_to_gain(0.0),
+                config.output_gain,
                 FloatRange::Linear {
                     min: util::db_to_gain(-30.0),
                     max: util::db_to_gain(0.0),
@@ -156,7 +183,7 @@ impl Default for OpenHeadstageParams {
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
             speaker_azimuth_left: FloatParam::new(
                 "L Azimuth",
-                -30.0,
+                config.speaker_azimuth_left,
                 FloatRange::Linear {
                     min: -90.0,
                     max: 90.0,
@@ -166,7 +193,7 @@ impl Default for OpenHeadstageParams {
             .with_unit("°"),
             speaker_elevation_left: FloatParam::new(
                 "L Elevation",
-                0.0,
+                config.speaker_elevation_left,
                 FloatRange::Linear {
                     min: -45.0,
                     max: 45.0,
@@ -176,7 +203,7 @@ impl Default for OpenHeadstageParams {
             .with_unit("°"),
             speaker_azimuth_right: FloatParam::new(
                 "R Azimuth",
-                30.0,
+                config.speaker_azimuth_right,
                 FloatRange::Linear {
                     min: -90.0,
                     max: 90.0,
@@ -186,7 +213,7 @@ impl Default for OpenHeadstageParams {
             .with_unit("°"),
             speaker_elevation_right: FloatParam::new(
                 "R Elevation",
-                0.0,
+                config.speaker_elevation_right,
                 FloatRange::Linear {
                     min: -45.0,
                     max: 45.0,
@@ -194,10 +221,8 @@ impl Default for OpenHeadstageParams {
             )
             .with_smoother(SmoothingStyle::Linear(50.0))
             .with_unit("°"),
-            eq_enable: BoolParam::new("Enable EQ", false),
-            eq_bands: (0..NUM_EQ_BANDS)
-                .map(|_i| EqBandParams::default())
-                .collect(),
+            eq_enable: BoolParam::new("Enable EQ", config.eq_enable),
+            eq_bands,
         }
     }
 }
@@ -309,11 +334,124 @@ fn get_config_path() -> Option<PathBuf> {
     Some(config_path)
 }
 
-fn save_state(params: &Arc<OpenHeadstageParams>) {
+// Standalone Persistence
+//
+// To handle saving and loading the plugin's state in the standalone version, we use a
+// dedicated, serializable struct. This is necessary because `nih-plug`'s `Params` struct
+// and its parameter types are not directly serializable with `serde`.
+//
+// The `StandaloneConfig` struct mirrors all the parameters and persistent fields of the
+// `OpenHeadstageParams` struct, but uses simple, serializable types (like `f32`, `bool`).
+//
+// **On Startup:**
+// 1. The `OpenHeadstagePlugin::default()` constructor is called.
+// 2. It attempts to load and deserialize the `StandaloneConfig` from a JSON file.
+// 3. The loaded config (or a default one) is passed to `OpenHeadstageParams::new()`.
+// 4. `OpenHeadstageParams::new()` uses the config's values to initialize the `FloatParam`,
+//    `BoolParam`, etc. with their correct starting values.
+//
+// **On Save:**
+// 1. The user clicks the "Save Settings" button in the UI.
+// 2. This calls the `save_standalone_config()` function.
+// 3. This function reads the current value of every parameter using the `.value()` method.
+// 4. It populates a `StandaloneConfig` struct with these values and serializes it to the
+//    JSON file, overwriting the previous state.
+
+#[derive(Serialize, Deserialize, Clone)]
+struct StandaloneConfig {
+    sofa_file_path: String,
+    audio_host: String,
+    audio_device: String,
+    master_bypass: bool,
+    output_gain: f32,
+    speaker_azimuth_left: f32,
+    speaker_elevation_left: f32,
+    speaker_azimuth_right: f32,
+    speaker_elevation_right: f32,
+    eq_enable: bool,
+    eq_bands: Vec<BandSetting>,
+}
+
+impl Default for StandaloneConfig {
+    fn default() -> Self {
+        let default_params = OpenHeadstageParams::new(Self::pre_default());
+        let mut eq_bands = Vec::new();
+        for band in default_params.eq_bands.iter() {
+            eq_bands.push(BandSetting {
+                enabled: band.enabled.value(),
+                filter_type: band.filter_type.value(),
+                frequency: band.frequency.value(),
+                q: band.q.value(),
+                gain: band.gain.value(),
+            });
+        }
+
+        Self {
+            sofa_file_path: default_params.sofa_file_path.read().clone(),
+            audio_host: default_params.audio_host.read().clone(),
+            audio_device: default_params.audio_device.read().clone(),
+            master_bypass: default_params.master_bypass.value(),
+            output_gain: default_params.output_gain.value(),
+            speaker_azimuth_left: default_params.speaker_azimuth_left.value(),
+            speaker_elevation_left: default_params.speaker_elevation_left.value(),
+            speaker_azimuth_right: default_params.speaker_azimuth_right.value(),
+            speaker_elevation_right: default_params.speaker_elevation_right.value(),
+            eq_enable: default_params.eq_enable.value(),
+            eq_bands,
+        }
+    }
+}
+
+impl StandaloneConfig {
+    // A special default for initializing the default params struct without infinite recursion
+    fn pre_default() -> Self {
+        Self {
+            sofa_file_path: String::new(),
+            audio_host: cpal::default_host().id().name().to_string(),
+            audio_device: cpal::default_host()
+                .default_output_device()
+                .map(|d| d.name().unwrap_or_default())
+                .unwrap_or_default(),
+            master_bypass: false,
+            output_gain: util::db_to_gain(0.0),
+            speaker_azimuth_left: -30.0,
+            speaker_elevation_left: 0.0,
+            speaker_azimuth_right: 30.0,
+            speaker_elevation_right: 0.0,
+            eq_enable: false,
+            eq_bands: (0..NUM_EQ_BANDS).map(|_| BandSetting::default()).collect(),
+        }
+    }
+}
+
+fn save_standalone_config(params: &Arc<OpenHeadstageParams>) {
+    let mut bands = Vec::new();
+    for band in &params.eq_bands {
+        bands.push(BandSetting {
+            enabled: band.enabled.value(),
+            filter_type: band.filter_type.value(),
+            frequency: band.frequency.value(),
+            q: band.q.value(),
+            gain: band.gain.value(),
+        });
+    }
+
+    let config = StandaloneConfig {
+        sofa_file_path: params.sofa_file_path.read().clone(),
+        audio_host: params.audio_host.read().clone(),
+        audio_device: params.audio_device.read().clone(),
+        master_bypass: params.master_bypass.value(),
+        output_gain: params.output_gain.value(),
+        speaker_azimuth_left: params.speaker_azimuth_left.value(),
+        speaker_elevation_left: params.speaker_elevation_left.value(),
+        speaker_azimuth_right: params.speaker_azimuth_right.value(),
+        speaker_elevation_right: params.speaker_elevation_right.value(),
+        eq_enable: params.eq_enable.value(),
+        eq_bands: bands,
+    };
+
     if let Some(config_path) = get_config_path() {
-        let json = params.serialize_fields();
-        if let Ok(json_str) = serde_json::to_string_pretty(&json) {
-            nih_log!("SAVING STATE: {}", json_str);
+        if let Ok(json_str) = serde_json::to_string_pretty(&config) {
             let _ = fs::write(config_path, json_str);
         }
     }
@@ -321,16 +459,12 @@ fn save_state(params: &Arc<OpenHeadstageParams>) {
 
 impl Default for OpenHeadstagePlugin {
     fn default() -> Self {
-        let params = Arc::new(OpenHeadstageParams::default());
+        let config = get_config_path()
+            .and_then(|p| fs::read_to_string(p).ok())
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
 
-        if let Some(config_path) = get_config_path() {
-            if let Ok(json_str) = fs::read_to_string(config_path) {
-                nih_log!("LOADING STATE: {}", json_str);
-                if let Ok(json) = serde_json::from_str(&json_str) {
-                    params.deserialize_fields(&json);
-                }
-            }
-        }
+        let params = Arc::new(OpenHeadstageParams::new(config));
 
         Self::new(44100.0, params)
     }
@@ -563,7 +697,8 @@ impl Plugin for OpenHeadstagePlugin {
                             setter.end_set_parameter(&params.master_bypass);
                         }
                         if ui.button("Reset to Default").clicked() {
-                            let default_params = OpenHeadstageParams::default();
+                            let default_config = StandaloneConfig::default();
+                            let default_params = OpenHeadstageParams::new(default_config);
 
                             setter.begin_set_parameter(&params.master_bypass);
                             setter.set_parameter(
@@ -654,7 +789,7 @@ impl Plugin for OpenHeadstagePlugin {
                             }
                         }
                         if ui.button("Save Settings").clicked() {
-                            save_state(&params);
+                            save_standalone_config(&params);
                         }
                         ui.label("Output Gain");
                         ui.add(widgets::ParamSlider::for_param(&params.output_gain, setter));

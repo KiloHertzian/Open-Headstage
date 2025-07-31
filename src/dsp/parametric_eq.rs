@@ -17,11 +17,13 @@
 use biquad::{Biquad, Coefficients, DirectForm2Transposed, ToHertz, Type};
 use nih_plug::prelude::Enum;
 use num_complex::Complex;
+use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default)]
 #[allow(dead_code)]
 pub enum FilterType {
+    #[default]
     Peak,
     LowShelf,
     HighShelf,

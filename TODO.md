@@ -25,17 +25,19 @@ This file tracks the development tasks for the Open Headstage project.
         6. **Confirm whether the "Host" and "Device" dropdowns have retained the previously selected values.**
     - **Status:** DONE.
 
-- [ ] **[FEATURE] Implement Full, User-Controlled State Persistence:**
-    - **Description:** Implement a robust state persistence mechanism that saves all user-configurable settings to a configuration file. This will be controlled by an explicit "Save Settings" button in the UI.
+- [x] **[FEATURE] Implement Full, User-Controlled State Persistence (Manual Approach):**
+    - **Description:** Implement a robust state persistence mechanism that saves all user-configurable settings to a configuration file. This will be controlled by an explicit "Save Settings" button in the UI. This approach uses a dedicated, serializable struct that manually mirrors all parameter values to avoid the pitfalls of the `nih-plug` parameter serialization API.
     - **Priority:** Highest.
     - **Sub-tasks:**
-        - [ ] **[REFACTOR]** Replace the temporary `StandaloneConfig` struct with a more robust solution using `params.serialize_fields()` and `params.deserialize_fields()`.
-        - [ ] **[LOGIC]** Create a `save_state()` function in `lib.rs` that serializes the entire `Params` object to the JSON config file.
-        - [ ] **[LOGIC]** Modify the `OpenHeadstagePlugin::default()` constructor to call `params.deserialize_fields()` to load the state from the JSON file on startup.
-        - [ ] **[UI]** Add a "Save Settings" button to the "Master Output" section of the UI, next to the "Reset to Default" button.
-        - [ ] **[LOGIC]** Hook up the "Save Settings" button to call the new `save_state()` function.
-        - [ ] **[CLEANUP]** Remove the automatic saving logic from the Host/Device dropdown menus.
-        - [ ] **[VERIFY]** Confirm that all settings (speakers, EQ, gain, file paths, etc.) are correctly saved and restored after closing and relaunching the application.
+        - [x] **[REFACTOR]** Define a `StandaloneConfig` struct in `lib.rs` that contains simple, serializable fields for every parameter in `OpenHeadstageParams` (e.g., `output_gain: f32`, `eq_enable: bool`).
+        - [x] **[REFACTOR]** Ensure the `BandSetting` struct in `autoeq_parser.rs` derives `Serialize` and `Deserialize`.
+        - [x] **[LOGIC]** Create a `save_standalone_config()` function that reads the current value of every parameter from the `params` object using the `.value()` method and saves it into an instance of the `StandaloneConfig` struct.
+        - [x] **[LOGIC]** The `save_standalone_config()` function will then serialize the `StandaloneConfig` struct to the JSON config file.
+        - [x] **[LOGIC]** Modify the `OpenHeadstagePlugin::default()` constructor to load and deserialize the `StandaloneConfig` from the JSON file.
+        - [x] **[LOGIC]** The constructor will then use the loaded values to programmatically set the initial state of each parameter using the `.set_value()` method.
+        - [x] **[UI]** Verify the "Save Settings" button is correctly hooked up to call the `save_standalone_config()` function.
+        - [x] **[VERIFY]** Confirm that all settings (speakers, EQ, gain, file paths, etc.) are correctly saved and restored after closing and relaunching the application.
+    - **Status:** DONE.
 
 - [x] **[UI-REFACTOR] Restore Original UI Layout:**
     - **Description:** After attempting to make the PEQ panel a permanent part of the UI, the layout was disrupted. The task was to revert the changes and restore the original, preferred layout with the slide-out panel.

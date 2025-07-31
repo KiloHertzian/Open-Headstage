@@ -31,7 +31,7 @@ pub struct ParsedEqBand {
     pub gain: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub struct BandSetting {
     pub enabled: bool,
     pub filter_type: FilterType,
