@@ -14,13 +14,13 @@
 
 use crossbeam_channel::Sender;
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use strum::IntoEnumIterator;
 
 // Make sure our modules are declared
@@ -37,9 +37,7 @@ use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use cpal::traits::{DeviceTrait, HostTrait};
 use egui_file_dialog::FileDialog;
 
-
 const NUM_EQ_BANDS: usize = 10;
-
 
 pub enum Task {
     LoadSofa(PathBuf),
@@ -77,8 +75,15 @@ impl Default for EqBandParams {
             )
             .with_unit(" Hz")
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
-            q: FloatParam::new("Q", 0.7, FloatRange::Linear { min: 0.1, max: 10.0 })
-                .with_smoother(SmoothingStyle::Linear(50.0)),
+            q: FloatParam::new(
+                "Q",
+                0.7,
+                FloatRange::Linear {
+                    min: 0.1,
+                    max: 10.0,
+                },
+            )
+            .with_smoother(SmoothingStyle::Linear(50.0)),
             gain: FloatParam::new(
                 "Gain",
                 0.0,
@@ -148,8 +153,15 @@ impl OpenHeadstageParams {
                 )
                 .with_unit(" Hz")
                 .with_smoother(SmoothingStyle::Logarithmic(50.0)),
-                q: FloatParam::new("Q", band_config.q, FloatRange::Linear { min: 0.1, max: 10.0 })
-                    .with_smoother(SmoothingStyle::Linear(50.0)),
+                q: FloatParam::new(
+                    "Q",
+                    band_config.q,
+                    FloatRange::Linear {
+                        min: 0.1,
+                        max: 10.0,
+                    },
+                )
+                .with_smoother(SmoothingStyle::Linear(50.0)),
                 gain: FloatParam::new(
                     "Gain",
                     band_config.gain,
@@ -638,40 +650,88 @@ impl Plugin for OpenHeadstagePlugin {
                             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                                 ui.add_space(10.0);
                                 ui.horizontal(|ui| {
-                                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        if ui.add(egui::Button::new("Apply").min_size(egui::vec2(100.0, 30.0))).clicked() {
-                                            // Apply the temporary settings to the actual params
-                                            for (i, band_setting) in state.eq_editor_bands.iter().enumerate() {
-                                                if let Some(band_param) = params.eq_bands.get(i) {
-                                                    setter.begin_set_parameter(&band_param.enabled);
-                                                    setter.set_parameter(&band_param.enabled, band_setting.enabled);
-                                                    setter.end_set_parameter(&band_param.enabled);
+                                    ui.with_layout(
+                                        egui::Layout::left_to_right(egui::Align::Center),
+                                        |ui| {
+                                            if ui
+                                                .add(
+                                                    egui::Button::new("Apply")
+                                                        .min_size(egui::vec2(100.0, 30.0)),
+                                                )
+                                                .clicked()
+                                            {
+                                                // Apply the temporary settings to the actual params
+                                                for (i, band_setting) in
+                                                    state.eq_editor_bands.iter().enumerate()
+                                                {
+                                                    if let Some(band_param) = params.eq_bands.get(i)
+                                                    {
+                                                        setter.begin_set_parameter(
+                                                            &band_param.enabled,
+                                                        );
+                                                        setter.set_parameter(
+                                                            &band_param.enabled,
+                                                            band_setting.enabled,
+                                                        );
+                                                        setter
+                                                            .end_set_parameter(&band_param.enabled);
 
-                                                    setter.begin_set_parameter(&band_param.filter_type);
-                                                    setter.set_parameter(&band_param.filter_type, band_setting.filter_type);
-                                                    setter.end_set_parameter(&band_param.filter_type);
+                                                        setter.begin_set_parameter(
+                                                            &band_param.filter_type,
+                                                        );
+                                                        setter.set_parameter(
+                                                            &band_param.filter_type,
+                                                            band_setting.filter_type,
+                                                        );
+                                                        setter.end_set_parameter(
+                                                            &band_param.filter_type,
+                                                        );
 
-                                                    setter.begin_set_parameter(&band_param.frequency);
-                                                    setter.set_parameter(&band_param.frequency, band_setting.frequency);
-                                                    setter.end_set_parameter(&band_param.frequency);
+                                                        setter.begin_set_parameter(
+                                                            &band_param.frequency,
+                                                        );
+                                                        setter.set_parameter(
+                                                            &band_param.frequency,
+                                                            band_setting.frequency,
+                                                        );
+                                                        setter.end_set_parameter(
+                                                            &band_param.frequency,
+                                                        );
 
-                                                    setter.begin_set_parameter(&band_param.q);
-                                                    setter.set_parameter(&band_param.q, band_setting.q);
-                                                    setter.end_set_parameter(&band_param.q);
+                                                        setter.begin_set_parameter(&band_param.q);
+                                                        setter.set_parameter(
+                                                            &band_param.q,
+                                                            band_setting.q,
+                                                        );
+                                                        setter.end_set_parameter(&band_param.q);
 
-                                                    setter.begin_set_parameter(&band_param.gain);
-                                                    setter.set_parameter(&band_param.gain, band_setting.gain);
-                                                    setter.end_set_parameter(&band_param.gain);
+                                                        setter
+                                                            .begin_set_parameter(&band_param.gain);
+                                                        setter.set_parameter(
+                                                            &band_param.gain,
+                                                            band_setting.gain,
+                                                        );
+                                                        setter.end_set_parameter(&band_param.gain);
+                                                    }
                                                 }
+                                                state.show_eq_editor = false;
                                             }
-                                            state.show_eq_editor = false;
-                                        }
-                                    });
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        if ui.add(egui::Button::new("Cancel").min_size(egui::vec2(100.0, 30.0))).clicked() {
-                                            state.show_eq_editor = false;
-                                        }
-                                    });
+                                        },
+                                    );
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            if ui
+                                                .add(
+                                                    egui::Button::new("Cancel")
+                                                        .min_size(egui::vec2(100.0, 30.0)),
+                                                )
+                                                .clicked()
+                                            {
+                                                state.show_eq_editor = false;
+                                            }
+                                        },
+                                    );
                                 });
                             });
                         });
@@ -760,9 +820,7 @@ impl Plugin for OpenHeadstagePlugin {
                                 setter.begin_set_parameter(&band.filter_type);
                                 setter.set_parameter(
                                     &band.filter_type,
-                                    default_params.eq_bands[i]
-                                        .filter_type
-                                        .default_plain_value(),
+                                    default_params.eq_bands[i].filter_type.default_plain_value(),
                                 );
                                 setter.end_set_parameter(&band.filter_type);
 
@@ -844,19 +902,39 @@ impl Plugin for OpenHeadstagePlugin {
                     .default_open(true)
                     .show(ui, |ui| {
                         ui.label("Audio Output");
-                        ui.label(egui::RichText::new("Changes require an application restart.").size(12.0).color(ui.visuals().warn_fg_color));
-                        
+                        ui.label(
+                            egui::RichText::new("Changes require an application restart.")
+                                .size(12.0)
+                                .color(ui.visuals().warn_fg_color),
+                        );
+
                         let selected_host_name = state.selected_host_id.name().to_string();
                         egui::ComboBox::from_label("Host")
                             .selected_text(&selected_host_name)
                             .show_ui(ui, |ui| {
                                 for host_id in &state.available_hosts {
-                                    if ui.selectable_value(&mut state.selected_host_id, *host_id, host_id.name()).changed() {
-                                        state.available_devices = EditorState::get_output_devices_for_host(&state.selected_host_id);
-                                        *params.audio_host.write() = state.selected_host_id.name().to_string();
+                                    if ui
+                                        .selectable_value(
+                                            &mut state.selected_host_id,
+                                            *host_id,
+                                            host_id.name(),
+                                        )
+                                        .changed()
+                                    {
+                                        state.available_devices =
+                                            EditorState::get_output_devices_for_host(
+                                                &state.selected_host_id,
+                                            );
+                                        *params.audio_host.write() =
+                                            state.selected_host_id.name().to_string();
                                         // Select the default device of the new host
-                                        if let Some(default_device) = cpal::host_from_id(state.selected_host_id).ok().and_then(|h| h.default_output_device()) {
-                                            *params.audio_device.write() = default_device.name().unwrap_or_default();
+                                        if let Some(default_device) =
+                                            cpal::host_from_id(state.selected_host_id)
+                                                .ok()
+                                                .and_then(|h| h.default_output_device())
+                                        {
+                                            *params.audio_device.write() =
+                                                default_device.name().unwrap_or_default();
                                         } else {
                                             *params.audio_device.write() = String::new();
                                         }
@@ -869,7 +947,14 @@ impl Plugin for OpenHeadstagePlugin {
                             .selected_text(&selected_device_name)
                             .show_ui(ui, |ui| {
                                 for device_name in &state.available_devices {
-                                    if ui.selectable_value(&mut selected_device_name, device_name.clone(), device_name).changed() {
+                                    if ui
+                                        .selectable_value(
+                                            &mut selected_device_name,
+                                            device_name.clone(),
+                                            device_name,
+                                        )
+                                        .changed()
+                                    {
                                         *params.audio_device.write() = selected_device_name.clone();
                                     }
                                 }
@@ -975,7 +1060,10 @@ impl Plugin for OpenHeadstagePlugin {
                         }
                         Some(FileDialogRequest::AutoEq) => {
                             let result_mutex = state.auto_eq_result.clone();
-                            async_executor.execute_background(Task::LoadAutoEq(path.to_path_buf(), result_mutex));
+                            async_executor.execute_background(Task::LoadAutoEq(
+                                path.to_path_buf(),
+                                result_mutex,
+                            ));
                         }
                         None => nih_log!("File dialog picked but no request was made."),
                     }
@@ -1071,7 +1159,6 @@ impl Plugin for OpenHeadstagePlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-
         if !self
             .has_logged_processing_start
             .swap(true, Ordering::Relaxed)
@@ -1098,8 +1185,11 @@ impl Plugin for OpenHeadstagePlugin {
                         gain_db: band_params.gain.smoothed.next(),
                         enabled: band_params.enabled.value(),
                     };
-                    self.parametric_eq
-                        .update_band_coeffs(i, self.current_sample_rate, &band_config);
+                    self.parametric_eq.update_band_coeffs(
+                        i,
+                        self.current_sample_rate,
+                        &band_config,
+                    );
                 }
                 self.parametric_eq.process_block(left, right);
             }

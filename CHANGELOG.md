@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Documentation:** Replaced the single architecture diagram in `README.md` with two new, more detailed Mermaid diagrams for "High-Level Architecture" and "Real-time Audio Signal Flow". This provides a clearer and more aesthetically pleasing overview of the project.
+
 ### Fixed
 - **File Dialog:** Corrected the usage of the `egui-file-dialog` library to ensure that file dialogs for loading SOFA and AutoEQ files now appear correctly. This was a critical regression.
 - **Slider Reset:** Refactored all main panel sliders to use the idiomatic `nih_plug_egui::widgets::ParamSlider`. This fixes the double-click-to-reset functionality, which was previously broken.
