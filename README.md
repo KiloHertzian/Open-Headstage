@@ -22,7 +22,7 @@
 
 Open Headstage is a professional-grade audio processing tool for enthusiasts and professionals who want to achieve a more natural and immersive listening experience on headphones. By using advanced digital signal processing (DSP), it simulates the way sound from stereo speakers interacts with your head and ears, creating a "phantom" soundstage in front of you.
 
-This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. The core technology is also planned to be bundled as a **CLAP plugin** for integration into digital audio workstations (DAWs), although full DAW compatibility is still under development and the plugin is not yet consistently detected by DAWs.
+This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. The core technology is also planned to be bundled as a **CLAP plugin** for integration into digital audio workstations (DAWs), although this is a secondary goal and full DAW compatibility is still under development.
 
 ### Core Features
 <div style="font-size: 0.9em;">
@@ -31,59 +31,58 @@ This project is developed as a **standalone application first**, ensuring a stab
 *   **SOFA File Support:** Load your own HRTF profiles in the standard SOFA format for a personalized experience.
 *   **10-Band Parametric EQ:** Correct your headphone's frequency response with a powerful parametric equalizer.
 *   **AutoEQ Integration:** Easily import and apply headphone correction profiles from the popular AutoEQ project.
-*   **Standalone First:** A dedicated application for all major desktop operating systems.
-*   **CLAP Plugin Support (Planned):** Integration with the modern CLAP plugin format is planned, but the plugin is not yet consistently detected or loaded by DAWs.
+*   **Standalone First:** A dedicated application for Linux, Windows, and macOS with selectable audio backends (JACK, ALSA, etc.).
+*   **CLAP Plugin Support (Experimental):** An experimental CLAP plugin is available but is not yet consistently detected or loaded by all DAWs.
 
 </div>
 
 ## Signal Path & Architecture
 
-The application's audio processing is designed for high-fidelity and low latency, following a clean and logical signal path.
+The application's audio processing is designed for high-fidelity and low latency, following a clean and logical signal path within the standalone host.
 
 ```mermaid
 graph TD
-    %% ---- Control Plane ----
-    subgraph "User Controls & File Loading"
+    %% ---- User and System ----
+    User["fa:fa-user User"]
+    SystemAudio["fa:fa-cogs System Audio (JACK, ALSA, etc.)"]
+
+    %% ---- Application Boundary ----
+    subgraph "Open Headstage Standalone Application"
         direction LR
         UI["fa:fa-desktop User Interface (egui)"]
+        Params["fa:fa-sliders-h App Parameters"]
         SofaLoader["fa:fa-file-audio SOFA File Loader"]
         AutoEqLoader["fa:fa-file-import AutoEQ Profile Loader"]
+
+        subgraph "Real-time Audio Signal Path"
+            direction LR
+            Input["fa:fa-volume-down Stereo Input"] --> EQ["fa:fa-wave-square Headphone EQ"] --> Conv["fa:fa-headphones-alt Binaural Convolution"] --> Gain["fa:fa-volume-up Output Gain"] --> Output["fa:fa-headphones Stereo Output"]
+        end
     end
 
-    subgraph "Configuration"
-        Params["fa:fa-sliders-h Plugin Parameters"]
-    end
-
+    %% ---- Connections ----
+    User -- "Controls" --> UI
     UI -- "Modifies & Triggers" --> Params
     UI -- "Triggers" --> SofaLoader
     UI -- "Triggers" --> AutoEqLoader
 
-    %% ---- Real-time Audio Signal Path ----
-    subgraph "Signal Path"
-        direction LR
-        Input["fa:fa-volume-down Stereo Input"] --> EQ["fa:fa-wave-square Headphone EQ"] --> Conv["fa:fa-headphones-alt Binaural Convolution"] --> Gain["fa:fa-volume-up Output Gain"] --> Output["fa:fa-headphones Stereo Output"]
-    end
-
-    %% ---- Control Connections to Signal Path ----
     Params -- "Controls" --> EQ
     Params -- "Controls" --> Conv
     Params -- "Controls" --> Gain
     SofaLoader -- "Provides HRTFs" --> Conv
     AutoEqLoader -- "Provides Settings" --> EQ
 
+    SystemAudio -- "Provides" --> Input
+    Output -- "Sends to" --> SystemAudio
+
     %% ---- Styling ----
     classDef dsp fill:#1f2937,stroke:#60a5fa,color:#e5e7eb
     classDef io fill:#111827,stroke:#9ca3af,color:#e5e7eb
     classDef control fill:#111827,stroke:#9ca3af,color:#e5e7eb
 
-    class Input,Output io
+    class Input,Output,SystemAudio io
     class EQ,Conv,Gain dsp
-    class UI,Params,SofaLoader,AutoEqLoader control
-
-    %% ---- Link Styling ----
-    linkStyle 0,1,2 stroke:#84cc16,stroke-width:2px,stroke-dasharray: 3 3
-    linkStyle 7,8,9 stroke:#e53e3e,stroke-width:2px,stroke-dasharray: 3 3
-    linkStyle 10,11 stroke:#ffb700,stroke-width:2px
+    class UI,Params,SofaLoader,AutoEqLoader,User control
 ```
 
 ## Getting Started
@@ -111,7 +110,7 @@ To build Open Headstage from source, you will need the following tools and libra
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/your-username/Open-Headstage.git
-    cd Open-Headstage
+    cd Open-Headstage/app
     ```
 2.  **Build the standalone application:**
     ```bash
@@ -122,13 +121,17 @@ To build Open Headstage from source, you will need the following tools and libra
     ```bash
     ./target/release/open-headstage
     ```
-4.  **Build the CLAP plugin (manual bundling):**
-    After building, the CLAP plugin (`.so` file) needs to be manually copied into a `.clap` bundle directory for DAW detection.
+4.  **Build the CLAP plugin (Manual & Experimental):**
+    The CLAP plugin (`.so` file) must be manually copied into a `.clap` bundle. Note that DAW detection is not guaranteed.
     ```bash
-    mkdir -p ~/.clap/open-headstage.clap/contents/linux/x86_64
-    cp target/release/libopen_headstage.so ~/.clap/open-headstage.clap/contents/linux/x86_64/open-headstage.so
+    # First, ensure the library is built
+    cargo build --release
+    # Create the bundle directory
+    mkdir -p ~/.clap/open-headstage.clap
+    # Copy the shared library into the bundle
+    cp target/release/libopen_headstage.so ~/.clap/open-headstage.clap/open-headstage.so
     ```
-    For more details on plugin validation and bundling, refer to the "Operational Reminder (Plugin Validation)" in `TODO.md`.
+    For more details on plugin validation, refer to the "Operational Reminder (Plugin Validation)" in `TODO.md`.
 
 ## How to Contribute
 
@@ -146,4 +149,4 @@ Please refer to our issue templates for bug reports and feature requests.
 
 Distributed under the Apache License, Version 2.0. See `LICENSE` for more information.
 
-**Note on VST3:** While VST3 support is currently disabled, if it were to be re-enabled, the `vst3-sys` crate's GPLv3 license would require any distributed binary containing the VST3 version of this plugin to also have its corresponding source code made available under the GPLv3. Refer to `LICENSES.md` for full details on all project dependencies and their licenses.
+**Note on VST3:** VST3 support is currently disabled. If it were to be re-enabled in the future, the `vst3-sys` crate's GPLv3 license would require any distributed binary containing the VST3 version of this plugin to also have its corresponding source code made available under the GPLv3. Refer to `LICENSES.md` for full details on all project dependencies and their licenses.

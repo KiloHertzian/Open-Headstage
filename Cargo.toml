@@ -5,23 +5,26 @@ edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.87"
 
-[patch.'https://github.com/Rust-UI-Toolkit/baseview.git']
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "9a0b42c09d712777b2edb4c5e0cb6baf21e988f0" }
-
 [dependencies]
 # VST3 support has been explicitly disabled to avoid the GPLv3 license of the VST3 SDK.
 # We are focusing on CLAP as the primary plugin format, which uses the permissive MIT license.
 # To re-enable VST3, you would need to add "vst3" to the features list below and accept
 # that the entire project must be licensed under GPLv3.
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "ecfd6322c776d9f0373d31758976c2353c162737", default-features = false, features = ["standalone"] }
-nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "ecfd6322c776d9f0373d31758976c2353c162737", optional = true }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", branch = "master", default-features = false, features = ["standalone"] }
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", branch = "master", optional = true }
 egui-file-dialog = { version = "0.10.0", optional = true }
 dirs = "5.0.1"
 
 # Dependencies for manual standalone host
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "45465c5f46abed6c6ce370fffde5edc8e4cd5aa3" }
+raw-window-handle = "0.5"
 cpal = "0.15"
+anyhow = "1.0"
 nih_log = "0.3.1"
 log = "0.4"
+ringbuf = "0.3.1"
+egui = "0.32"
+egui-baseview = { git = "https://github.com/BillyDM/egui-baseview.git", rev = "9867bbf124dc5059931a4be6e101c115410328c1", default-features = false, features = ["opengl"] }
 
 parking_lot = { version = "0.12", features = ["serde"] }
 
@@ -29,6 +32,7 @@ rustfft = "6.4.0"
 csv = "1.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+crossbeam = "0.8"
 crossbeam-channel = "0.5"
 biquad = "0.4.1"
 strum = "0.26"
