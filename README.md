@@ -78,14 +78,14 @@ graph TD
     User -- "Controls" --> UI
     UI -- "Manages" --> PluginState
     
-    UI -- "Triggers Load" -.-> SofaLoader
-    UI -- "Triggers Load" -.-> AutoEQLoader
+    UI -. "Triggers Load" .-> SofaLoader
+    UI -. "Triggers Load" .-> AutoEQLoader
 
-    FileSystem -- "Reads .sofa file" -.-> SofaLoader
-    FileSystem -- "Reads .txt file" -.-> AutoEQLoader
+    FileSystem -. "Reads .sofa file" .-> SofaLoader
+    FileSystem -. "Reads .txt file" .-> AutoEQLoader
 
-    SofaLoader -- "Provides HRTFs" -.-> AudioEngine
-    AutoEQLoader -- "Provides EQ settings" -.-> AudioEngine
+    SofaLoader -. "Provides HRTFs" .-> AudioEngine
+    AutoEQLoader -. "Provides EQ settings" .-> AudioEngine
     
     PluginState -- "Configures" --> AudioEngine
 
