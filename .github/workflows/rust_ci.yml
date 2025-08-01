@@ -32,7 +32,7 @@ jobs:
           toolchain: 1.87.0
           components: rustfmt, clippy # Add other components like 'llvm-tools-preview' if needed later
 
-- name: Cache Cargo dependencies
+      - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
         with:
           # Optional: specify a cache key prefix if you have multiple workflows
