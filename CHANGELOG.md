@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Documentation:** Redesigned the Mermaid.js diagrams in `README.md` for improved visual clarity, color contrast, and maintainability.
 - **Documentation:** Replaced the single architecture diagram in `README.md` with two new, more detailed Mermaid diagrams for "High-Level Architecture" and "Real-time Audio Signal Flow". This provides a clearer and more aesthetically pleasing overview of the project.
 
 ### Fixed
