@@ -38,6 +38,7 @@ biquad = "0.4.1"
 strum = "0.26"
 strum_macros = "0.26"
 num-complex = "0.4.5"
+walkdir = "2"
 
 [features]
 default = ["ui"]
@@ -45,6 +46,9 @@ ui = ["nih_plug_egui", "egui-file-dialog"]
 
 [build-dependencies]
 bindgen = "0.72.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+walkdir = "2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

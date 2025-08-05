@@ -12,24 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
 use std::error::Error;
-use std::fs::File;
+use std::fs;
 use std::path::Path;
+use std::str::FromStr;
+use nih_plug::prelude::nih_log;
 
 use crate::dsp::parametric_eq::FilterType;
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ParsedEqBand {
-    #[serde(rename = "Filter-Type")]
-    pub filter_type_str: String,
-    #[serde(rename = "Fc")]
-    pub frequency: f32,
-    #[serde(rename = "Q")]
-    pub q: f32,
-    #[serde(rename = "Gain")]
-    pub gain: f32,
-}
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub struct BandSetting {
@@ -40,31 +29,57 @@ pub struct BandSetting {
     pub gain: f32,
 }
 
-fn map_filter_type(autoeq_type: &str) -> Result<FilterType, String> {
-    match autoeq_type {
-        "PK" => Ok(FilterType::Peak),
-        "LS" => Ok(FilterType::LowShelf),
-        "HS" => Ok(FilterType::HighShelf),
-        _ => Err(format!("Unsupported filter type: {}", autoeq_type)),
-    }
+#[derive(Debug, Clone, Default)]
+pub struct AutoEqProfile {
+    pub preamp: f32,
+    pub bands: Vec<BandSetting>,
 }
 
-pub fn parse_autoeq_csv(path: &Path) -> Result<Vec<BandSetting>, Box<dyn Error>> {
-    let file = File::open(path)?;
-    let mut rdr = csv::Reader::from_reader(file);
-    let mut bands = Vec::new();
-
-    for result in rdr.deserialize() {
-        let record: ParsedEqBand = result?;
-        let band_setting = BandSetting {
-            enabled: true,
-            filter_type: map_filter_type(&record.filter_type_str)?,
-            frequency: record.frequency,
-            q: record.q,
-            gain: record.gain,
-        };
-        bands.push(band_setting);
+fn parse_filter_line(line: &str) -> Result<BandSetting, Box<dyn Error>> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    // Example: Filter 1: ON PK Fc 8983 Hz Gain 4.4 dB Q 2.63
+    if parts.len() < 11 || parts[0] != "Filter" || parts[2] != "ON" {
+        return Err("Invalid filter line format".into());
     }
 
-    Ok(bands)
+    let filter_type_str = parts[3];
+    let fc_str = parts[5];
+    let gain_str = parts[8];
+    let q_str = parts[11];
+
+    let filter_type = match filter_type_str {
+        "PK" => FilterType::Peak,
+        "LSC" => FilterType::LowShelf,
+        "HSC" => FilterType::HighShelf,
+        _ => return Err(format!("Unknown filter type: {}", filter_type_str).into()),
+    };
+
+    Ok(BandSetting {
+        enabled: true,
+        filter_type,
+        frequency: f32::from_str(fc_str)?,
+        q: f32::from_str(q_str)?,
+        gain: f32::from_str(gain_str)?,
+    })
+}
+
+pub fn parse_autoeq_file(path: &Path) -> Result<AutoEqProfile, Box<dyn Error>> {
+    let content = fs::read_to_string(path)?;
+    let mut profile = AutoEqProfile::default();
+
+    for line in content.lines() {
+        if line.starts_with("Preamp:") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                profile.preamp = f32::from_str(parts[1])?;
+            }
+        } else if line.starts_with("Filter") {
+            match parse_filter_line(line) {
+                Ok(band) => profile.bands.push(band),
+                Err(e) => nih_log!("Skipping invalid filter line: {}", e),
+            }
+        }
+    }
+
+    Ok(profile)
 }
