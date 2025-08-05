@@ -19,12 +19,11 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::process::Command;
-use strum::IntoEnumIterator;
 
 // Make sure our modules are declared
 mod autoeq_parser;
@@ -299,71 +298,27 @@ struct EditorState {
     auto_eq_result_receiver: Arc<Mutex<Option<AutoEqProfile>>>,
     loaded_eq_profile: Option<AutoEqProfile>,
     show_eq_editor: bool,
-    eq_editor_bands: Vec<BandSetting>,
     
     search_query: String,
     search_results: Vec<Headphone>,
     debouncer: Debouncer,
-
-    // State for audio device selection
-    available_hosts: Vec<cpal::HostId>,
-    available_devices: Vec<String>,
-    selected_host_id: cpal::HostId,
 }
 
 impl EditorState {
     fn new(
         auto_eq_result_receiver: Arc<Mutex<Option<AutoEqProfile>>>,
-        initial_eq_params: &[EqBandParams],
-        params: &OpenHeadstageParams,
     ) -> Self {
-        let eq_editor_bands = initial_eq_params
-            .iter()
-            .map(|p| BandSetting {
-                enabled: p.enabled.value(),
-                filter_type: p.filter_type.value(),
-                frequency: p.frequency.value(),
-                q: p.q.value(),
-                gain: p.gain.value(),
-            })
-            .collect();
-
-        let available_hosts = cpal::available_hosts();
-        let selected_host_id = cpal::available_hosts()
-            .into_iter()
-            .find(|id| id.name() == *params.audio_host.read())
-            .unwrap_or_else(|| cpal::default_host().id());
-
-        let available_devices = Self::get_output_devices_for_host(&selected_host_id);
-
         Self {
             file_dialog: FileDialog::new(),
             file_dialog_request: None,
             auto_eq_result_receiver,
             loaded_eq_profile: None,
             show_eq_editor: false,
-            eq_editor_bands,
             
             search_query: String::new(),
             search_results: Vec::new(),
             debouncer: Debouncer::new(Duration::from_millis(200)),
-
-            available_hosts,
-            available_devices,
-            selected_host_id,
         }
-    }
-
-    fn get_output_devices_for_host(host_id: &cpal::HostId) -> Vec<String> {
-        cpal::host_from_id(*host_id)
-            .ok()
-            .and_then(|host| host.output_devices().ok())
-            .map(|devices| {
-                devices
-                    .filter_map(|d| d.name().ok())
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default()
     }
 }
 
@@ -530,8 +485,6 @@ impl Plugin for OpenHeadstagePlugin {
 
         let editor_state = EditorState::new(
             auto_eq_result_receiver,
-            &self.params.eq_bands,
-            &self.params,
         );
 
         create_egui_editor(
