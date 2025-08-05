@@ -37,7 +37,28 @@ The application processes stereo audio input, applies binaural spatialization us
 
 The core logic is primarily located in the `src/` directory.
 
-### 3.1. Main Plugin Logic (`src/lib.rs`)
+### 3.1. Headphone EQ Search & Update (`build.rs`, `src/lib.rs`, `src/autoeq_parser.rs`)
+
+This feature provides dynamic, searchable access to the entire AutoEQ headphone database.
+
+*   **Architecture:** The feature is built on a decoupled, multi-threaded architecture to ensure real-time safety.
+    *   **UI Thread:** Managed by `egui`, captures user input (search queries, button clicks). It is forbidden from performing blocking operations.
+    *   **Background Thread:** Managed by `nih-plug`'s `task_executor`. Used for non-real-time tasks like running `git pull` or parsing files from disk.
+    *   **Real-Time Audio Thread:** The `process()` loop. It has strict no-allocation requirements.
+*   **Data Management & Indexing:**
+    *   **Data Source (`PRESERVE/AutoEq`):** A local clone of the `jaakkopasanen/AutoEq` git repository serves as the source of truth.
+    *   **Build-Time Indexing (`build.rs`):** At compile time, a build script scans the `PRESERVE/AutoEq/results` directory, extracts headphone metadata, and compiles it into a `headphone_index.json` file in the `OUT_DIR`.
+    *   **Bundled Index:** The generated `headphone_index.json` is bundled directly into the plugin binary using `include_str!`, ensuring full functionality on first launch.
+    *   **In-Memory Index:** The loaded index is deserialized into a `Vec<Headphone>` and stored in an `Arc<RwLock<...>>` for thread-safe searching from the UI.
+*   **UI & Search Logic (`src/lib.rs`):**
+    *   An `egui::TextEdit` widget captures the user's search query.
+    *   A custom `Debouncer` prevents search logic from running on every keystroke.
+    *   Search results are displayed in a scrollable list of buttons. Results are prioritized to show "oratory1990" measurements first, and the source is displayed to differentiate between measurements.
+*   **Asynchronous Operations:**
+    *   **Profile Loading:** Clicking a search result creates a `Task::LoadAutoEq`, which is sent to the `task_executor`. The background task calls `autoeq_parser::parse_autoeq_file`, and the result is returned to the UI via a shared `Arc<Mutex<Option<AutoEqProfile>>>` which the UI polls.
+    *   **Database Update:** Clicking "Update Database" dispatches a `Task::UpdateHeadphoneDatabase`. The background task runs `git pull` in the `PRESERVE/AutoEq` directory. It notifies the UI of completion via a shared `Arc<AtomicBool>`.
+
+### 3.2. Main Plugin Logic (`src/lib.rs`)
 
 *   **Responsibility:** Defines the main application structure (`OpenHeadstagePlugin`), its parameters (`OpenHeadstageParams`), and implements the `nih_plug::prelude::Plugin` trait. It orchestrates the interaction between different modules.
 *   **Key Structs:**
@@ -71,6 +92,23 @@ The core logic is primarily located in the `src/` directory.
 ### 3.5. Build Script (`build.rs`)
 
 *   **Responsibility:** Generates FFI bindings to `libmysofa` using `bindgen` before the rest of the Rust code is compiled.
+
+### 3.6. GUI Structure (`src/lib.rs` `editor()` method)
+
+The user interface is built using `egui` and follows an "immediate mode" paradigm, where the UI is declared from scratch on every frame. The layout is defined within the `editor()` method in `src/lib.rs`.
+
+*   **Main Layout:** The UI is composed of a main `egui::CentralPanel` which contains all the primary controls.
+*   **Collapsible Sections:** The main panel is organized into logical sections using `egui::collapsing_header::CollapsingHeader`. This keeps the UI tidy and allows the user to focus on one area at a time. The main sections are:
+    1.  **Master Output:** Contains the main output gain slider.
+    2.  **Speaker Configuration:** Contains the speaker visualizer and sliders for azimuth and elevation.
+    3.  **Headphone Equalization:** This is the most complex section, containing controls for both manual and automatic EQ.
+*   **Conditional Side Panel (PEQ Editor):** A `egui::SidePanel` is used for the detailed Parametric EQ editor.
+    *   **Visibility:** Its appearance is controlled by a boolean flag in the `EditorState` struct (`show_eq_editor`).
+    *   **Interaction:** Clicking the "Edit Parametric EQ" button toggles this flag, causing the panel to appear or disappear on the next frame redraw.
+*   **File Dialogs:**
+    *   File dialogs are handled by the `egui-file-dialog` crate.
+    *   The dialog is an `egui` window that is drawn on top of the main UI. Its state is managed within the `EditorState`.
+    *   When a button like "Select SOFA File" is clicked, a request is stored in `EditorState`, and the dialog's `pick_file()` method is called. The result is checked on every frame, and if a file is chosen, a `Task` is dispatched to the background thread.
 
 ## 4. Build Process
 
