@@ -24,6 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::process::Command;
+use strum::IntoEnumIterator;
 
 // Make sure our modules are declared
 mod autoeq_parser;
@@ -298,6 +299,7 @@ struct EditorState {
     auto_eq_result_receiver: Arc<Mutex<Option<AutoEqProfile>>>,
     loaded_eq_profile: Option<AutoEqProfile>,
     show_eq_editor: bool,
+    eq_editor_bands: Vec<BandSetting>,
     
     search_query: String,
     search_results: Vec<Headphone>,
@@ -307,13 +309,26 @@ struct EditorState {
 impl EditorState {
     fn new(
         auto_eq_result_receiver: Arc<Mutex<Option<AutoEqProfile>>>,
+        initial_eq_params: &[EqBandParams],
     ) -> Self {
+        let eq_editor_bands = initial_eq_params
+            .iter()
+            .map(|p| BandSetting {
+                enabled: p.enabled.value(),
+                filter_type: p.filter_type.value(),
+                frequency: p.frequency.value(),
+                q: p.q.value(),
+                gain: p.gain.value(),
+            })
+            .collect();
+
         Self {
             file_dialog: FileDialog::new(),
             file_dialog_request: None,
             auto_eq_result_receiver,
             loaded_eq_profile: None,
             show_eq_editor: false,
+            eq_editor_bands,
             
             search_query: String::new(),
             search_results: Vec::new(),
@@ -485,6 +500,7 @@ impl Plugin for OpenHeadstagePlugin {
 
         let editor_state = EditorState::new(
             auto_eq_result_receiver,
+            &self.params.eq_bands,
         );
 
         create_egui_editor(
@@ -564,6 +580,16 @@ impl Plugin for OpenHeadstagePlugin {
                             }
                             if ui.button("Edit Parametric EQ").clicked() {
                                 state.show_eq_editor = !state.show_eq_editor;
+                                if state.show_eq_editor {
+                                    // Sync the editor state with the current params
+                                    state.eq_editor_bands = params.eq_bands.iter().map(|p| BandSetting {
+                                        enabled: p.enabled.value(),
+                                        filter_type: p.filter_type.value(),
+                                        frequency: p.frequency.value(),
+                                        q: p.q.value(),
+                                        gain: p.gain.value(),
+                                    }).collect();
+                                }
                             }
                         });
 
@@ -680,8 +706,93 @@ impl Plugin for OpenHeadstagePlugin {
                         .resizable(true)
                         .default_width(500.0)
                         .show(egui_ctx, |ui| {
-                            ui.heading("Parametric EQ");
-                            ui.label("Editor placeholder");
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                ui.heading("Parametric EQ");
+
+                                ui.horizontal(|ui| {
+                                    if ui.button("Apply").clicked() {
+                                        setter.begin_set_parameter(&params.eq_enable);
+                                        setter.set_parameter(&params.eq_enable, true);
+                                        setter.end_set_parameter(&params.eq_enable);
+
+                                        let new_profile = AutoEqProfile {
+                                            preamp: params.preamp_gain.value(),
+                                            bands: state.eq_editor_bands.clone(),
+                                        };
+
+                                        for (i, band_setting) in state.eq_editor_bands.iter().enumerate() {
+                                            if let Some(band_params) = params.eq_bands.get(i) {
+                                                setter.begin_set_parameter(&band_params.enabled);
+                                                setter.set_parameter(&band_params.enabled, band_setting.enabled);
+                                                setter.end_set_parameter(&band_params.enabled);
+
+                                                setter.begin_set_parameter(&band_params.filter_type);
+                                                setter.set_parameter(&band_params.filter_type, band_setting.filter_type);
+                                                setter.end_set_parameter(&band_params.filter_type);
+
+                                                setter.begin_set_parameter(&band_params.frequency);
+                                                setter.set_parameter(&band_params.frequency, band_setting.frequency);
+                                                setter.end_set_parameter(&band_params.frequency);
+
+                                                setter.begin_set_parameter(&band_params.q);
+                                                setter.set_parameter(&band_params.q, band_setting.q);
+                                                setter.end_set_parameter(&band_params.q);
+
+                                                setter.begin_set_parameter(&band_params.gain);
+                                                setter.set_parameter(&band_params.gain, band_setting.gain);
+                                                setter.end_set_parameter(&band_params.gain);
+                                            }
+                                        }
+                                        param_change_sender.send(ParamChange::ApplyEqProfile(new_profile)).unwrap();
+                                        state.show_eq_editor = false;
+                                    }
+                                    if ui.button("Cancel").clicked() {
+                                        state.show_eq_editor = false;
+                                    }
+                                });
+
+                                ui.separator();
+
+                                egui::Grid::new("peq_grid").num_columns(5).show(ui, |ui| {
+                                    ui.label("On");
+                                    ui.label("Type");
+                                    ui.label("Freq");
+                                    ui.label("Q");
+                                    ui.label("Gain");
+                                    ui.end_row();
+
+                                    for band in &mut state.eq_editor_bands {
+                                        ui.checkbox(&mut band.enabled, "");
+                                        
+                                        egui::ComboBox::new(format!("filter_type_{}", band.frequency), "")
+                                            .selected_text(format!("{:?}", band.filter_type))
+                                            .show_ui(ui, |ui| {
+                                                for filter_type in FilterType::iter() {
+                                                    ui.selectable_value(&mut band.filter_type, filter_type, format!("{:?}", filter_type));
+                                                }
+                                            });
+
+                                        ui.add(
+                                            egui::DragValue::new(&mut band.frequency)
+                                                .speed(1.0)
+                                                .range(20.0..=20000.0)
+                                                .suffix(" Hz"),
+                                        );
+                                        ui.add(
+                                            egui::DragValue::new(&mut band.q)
+                                                .speed(0.01)
+                                                .range(0.1..=10.0),
+                                        );
+                                        ui.add(
+                                            egui::DragValue::new(&mut band.gain)
+                                                .speed(0.1)
+                                                .range(-16.0..=16.0)
+                                                .suffix(" dB"),
+                                        );
+                                        ui.end_row();
+                                    }
+                                });
+                            });
                         });
                 }
             },
