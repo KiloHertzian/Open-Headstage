@@ -14,7 +14,7 @@
 
 use crossbeam_channel::{Receiver, Sender};
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{EguiState, create_egui_editor, egui, widgets};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -22,8 +22,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use strum::{Display, EnumIter, IntoEnumIterator};
 
@@ -33,7 +33,7 @@ mod dsp;
 mod sofa;
 mod ui;
 
-use crate::autoeq_parser::{parse_autoeq_file, AutoEqProfile, BandSetting};
+use crate::autoeq_parser::{AutoEqProfile, BandSetting, parse_autoeq_file};
 use crate::dsp::convolution::ConvolutionEngine;
 use crate::dsp::parametric_eq::{BandConfig, FilterType, StereoParametricEQ};
 use crate::sofa::loader::MySofa;
@@ -47,9 +47,9 @@ pub enum StereoAnglePreset {
     #[strum(to_string = "Equilateral (60°)")]
     Equilateral, // 60 degrees
     #[strum(to_string = "Near-field (70°)")]
-    Nearfield,   // 70 degrees
+    Nearfield, // 70 degrees
     #[strum(to_string = "Far-field (45°)")]
-    Farfield,    // 45 degrees
+    Farfield, // 45 degrees
 }
 
 const NUM_EQ_BANDS: usize = 10;
@@ -146,7 +146,7 @@ pub struct OpenHeadstageParams {
 
     #[id = "out_gain"]
     pub output_gain: FloatParam,
-    
+
     #[id = "preamp_gain"]
     pub preamp_gain: FloatParam,
 
@@ -235,8 +235,13 @@ impl OpenHeadstageParams {
             preamp_gain: FloatParam::new(
                 "Preamp Gain",
                 0.0,
-                FloatRange::Linear { min: -20.0, max: 20.0 }
-            ).with_unit(" dB").with_smoother(SmoothingStyle::Linear(50.0)),
+                FloatRange::Linear {
+                    min: -20.0,
+                    max: 20.0,
+                },
+            )
+            .with_unit(" dB")
+            .with_smoother(SmoothingStyle::Linear(50.0)),
             stereo_preset: EnumParam::new("Stereo Preset", config.stereo_preset),
             speaker_azimuth_left: FloatParam::new(
                 "L Azimuth",
@@ -311,7 +316,6 @@ impl Debouncer {
     }
 }
 
-
 struct EditorState {
     file_dialog: FileDialog,
     file_dialog_request: Option<FileDialogRequest>,
@@ -319,7 +323,7 @@ struct EditorState {
     loaded_eq_profile: Option<AutoEqProfile>,
     show_eq_editor: bool,
     eq_editor_bands: Vec<BandSetting>,
-    
+
     search_query: String,
     search_results: Vec<Headphone>,
     debouncer: Debouncer,
@@ -363,7 +367,7 @@ impl EditorState {
             loaded_eq_profile: None,
             show_eq_editor: false,
             eq_editor_bands,
-            
+
             search_query: String::new(),
             search_results: Vec::new(),
             debouncer: Debouncer::new(Duration::from_millis(200)),
@@ -393,10 +397,10 @@ pub struct OpenHeadstagePlugin {
     sofa_loader: Arc<parking_lot::Mutex<Option<MySofa>>>,
     parametric_eq: StereoParametricEQ,
     current_sample_rate: f32,
-    
+
     headphone_index: Arc<RwLock<Vec<Headphone>>>,
     database_updated: Arc<AtomicBool>,
-    
+
     param_change_sender: Sender<ParamChange>,
     param_change_receiver: Receiver<ParamChange>,
 
@@ -406,7 +410,7 @@ pub struct OpenHeadstagePlugin {
 impl OpenHeadstagePlugin {
     pub fn new(sample_rate: f32, params: Arc<OpenHeadstageParams>) -> Self {
         let (tx, rx) = crossbeam_channel::unbounded();
-        
+
         let headphone_index = serde_json::from_str(HEADPHONE_INDEX_JSON).unwrap_or_else(|e| {
             nih_log!("Failed to parse embedded headphone index: {}", e);
             Vec::new()
@@ -418,7 +422,7 @@ impl OpenHeadstagePlugin {
             sofa_loader: Arc::new(parking_lot::Mutex::new(None)),
             parametric_eq: StereoParametricEQ::new(NUM_EQ_BANDS, sample_rate),
             current_sample_rate: sample_rate,
-            
+
             headphone_index: Arc::new(RwLock::new(headphone_index)),
             database_updated: Arc::new(AtomicBool::new(false)),
 
@@ -597,17 +601,21 @@ impl Plugin for OpenHeadstagePlugin {
         let auto_eq_result_receiver = self.auto_eq_result_receiver.clone();
         let param_change_sender = self.param_change_sender.clone();
 
-        let editor_state = EditorState::new(
-            auto_eq_result_receiver,
-            &self.params.eq_bands,
-            &self.params,
-        );
+        let editor_state =
+            EditorState::new(auto_eq_result_receiver, &self.params.eq_bands, &self.params);
 
         create_egui_editor(
             self.params.editor_state.clone(),
-            (editor_state, headphone_index, database_updated, param_change_sender),
+            (
+                editor_state,
+                headphone_index,
+                database_updated,
+                param_change_sender,
+            ),
             |_, _| {},
-            move |egui_ctx, setter, (state, headphone_index, database_updated, param_change_sender)| {
+            move |egui_ctx,
+                  setter,
+                  (state, headphone_index, database_updated, param_change_sender)| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     egui::Frame::window(ui.style())
                         .inner_margin(egui::Margin::same(10))
@@ -655,7 +663,6 @@ impl Plugin for OpenHeadstagePlugin {
                                             setter.begin_set_parameter(&params.output_gain);
                                             setter.set_parameter(&params.output_gain, default_params.output_gain.default_plain_value());
                                             setter.end_set_parameter(&params.output_gain);
-                                            
                                             setter.begin_set_parameter(&params.preamp_gain);
                                             setter.set_parameter(&params.preamp_gain, default_params.preamp_gain.default_plain_value());
                                             setter.end_set_parameter(&params.preamp_gain);
@@ -921,7 +928,6 @@ impl Plugin for OpenHeadstagePlugin {
                                     } else if state.search_query.is_empty() {
                                         state.search_results.clear();
                                     }
-                                    
                                     egui::ScrollArea::vertical().show(ui, |ui| {
                                         for headphone in &state.search_results {
                                             let display_text = format!("{} ({})", headphone.name, headphone.source);
@@ -1042,7 +1048,6 @@ impl Plugin for OpenHeadstagePlugin {
 
                                         for band in &mut state.eq_editor_bands {
                                             ui.checkbox(&mut band.enabled, "");
-                                            
                                             egui::ComboBox::new(format!("filter_type_{}", band.frequency), "")
                                                 .selected_text(format!("{:?}", band.filter_type))
                                                 .show_ui(ui, |ui| {
@@ -1109,7 +1114,10 @@ impl Plugin for OpenHeadstagePlugin {
                 }
                 Task::LoadAutoEq(path, result_mutex) => {
                     let absolute_path = data_dir.join(&path);
-                    nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", absolute_path);
+                    nih_log!(
+                        "BACKGROUND: Loading AutoEQ profile from: {:?}",
+                        absolute_path
+                    );
                     match parse_autoeq_file(&absolute_path) {
                         Ok(profile) => {
                             nih_log!(
@@ -1129,12 +1137,15 @@ impl Plugin for OpenHeadstagePlugin {
                 }
                 Task::UpdateHeadphoneDatabase => {
                     let autoeq_dir = data_dir.join("PRESERVE/AutoEq");
-                    nih_log!("BACKGROUND: Updating headphone database in {:?}...", autoeq_dir);
+                    nih_log!(
+                        "BACKGROUND: Updating headphone database in {:?}...",
+                        autoeq_dir
+                    );
                     let git_pull_status = Command::new("git")
                         .arg("pull")
                         .current_dir(&autoeq_dir)
                         .status();
-                    
+
                     match git_pull_status {
                         Ok(status) if status.success() => {
                             nih_log!("BACKGROUND: Git pull successful. Re-indexing...");
@@ -1144,7 +1155,11 @@ impl Plugin for OpenHeadstagePlugin {
                             nih_log!("BACKGROUND: Git pull failed with status: {}", status);
                         }
                         Err(e) => {
-                            nih_log!("BACKGROUND: Failed to execute git pull in {:?}: {}", autoeq_dir, e);
+                            nih_log!(
+                                "BACKGROUND: Failed to execute git pull in {:?}: {}",
+                                autoeq_dir,
+                                e
+                            );
                         }
                     }
                 }
@@ -1183,7 +1198,11 @@ impl Plugin for OpenHeadstagePlugin {
                             gain_db: band_setting.gain,
                             enabled: band_setting.enabled,
                         };
-                        self.parametric_eq.update_band_coeffs(i, self.current_sample_rate, &band_config);
+                        self.parametric_eq.update_band_coeffs(
+                            i,
+                            self.current_sample_rate,
+                            &band_config,
+                        );
                     }
                 }
             }

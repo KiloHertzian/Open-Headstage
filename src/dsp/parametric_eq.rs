@@ -20,7 +20,9 @@ use num_complex::Complex;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default, Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default, Display,
+)]
 #[allow(dead_code)]
 pub enum FilterType {
     #[default]

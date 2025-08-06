@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use nih_plug::prelude::nih_log;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
-use nih_plug::prelude::nih_log;
 
 use crate::dsp::parametric_eq::FilterType;
 

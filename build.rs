@@ -1,9 +1,9 @@
 extern crate bindgen;
 
+use serde::Serialize;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::Serialize;
 use walkdir::WalkDir;
 
 #[derive(Serialize, Debug)]
@@ -18,7 +18,10 @@ fn generate_headphone_index() {
     let dest_path = Path::new(&out_dir).join("headphone_index.json");
     let autoeq_results_path = Path::new("../PRESERVE/AutoEq/results");
 
-    println!("cargo:rerun-if-changed={}", autoeq_results_path.to_str().unwrap());
+    println!(
+        "cargo:rerun-if-changed={}",
+        autoeq_results_path.to_str().unwrap()
+    );
 
     let mut headphone_index: Vec<Headphone> = Vec::new();
 
@@ -32,11 +35,21 @@ fn generate_headphone_index() {
             if components.len() >= 4 {
                 // Expected path structure: ../PRESERVE/AutoEq/results/{source}/{...}/{name}/{name} ParametricEQ.txt
                 // The components we care about are relative to the `autoeq_results_path`
-                let relative_components: Vec<_> = path.strip_prefix(autoeq_results_path).unwrap().components().collect();
+                let relative_components: Vec<_> = path
+                    .strip_prefix(autoeq_results_path)
+                    .unwrap()
+                    .components()
+                    .collect();
 
                 if relative_components.len() >= 3 {
-                    let source = relative_components[0].as_os_str().to_string_lossy().into_owned();
-                    let name_part = relative_components[relative_components.len() - 2].as_os_str().to_string_lossy().into_owned();
+                    let source = relative_components[0]
+                        .as_os_str()
+                        .to_string_lossy()
+                        .into_owned();
+                    let name_part = relative_components[relative_components.len() - 2]
+                        .as_os_str()
+                        .to_string_lossy()
+                        .into_owned();
 
                     headphone_index.push(Headphone {
                         name: name_part,
@@ -48,11 +61,14 @@ fn generate_headphone_index() {
         }
     }
 
-    let json_string = serde_json::to_string_pretty(&headphone_index).expect("Failed to serialize headphone index");
+    let json_string = serde_json::to_string_pretty(&headphone_index)
+        .expect("Failed to serialize headphone index");
     fs::write(&dest_path, json_string).expect("Failed to write headphone index");
-    println!("cargo:warning=open-headstage@0.1.0: Generated headphone index with {} entries.", headphone_index.len());
+    println!(
+        "cargo:warning=open-headstage@0.1.0: Generated headphone index with {} entries.",
+        headphone_index.len()
+    );
 }
-
 
 fn main() {
     // Run the headphone index generator
