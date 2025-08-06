@@ -1,9 +1,79 @@
 extern crate bindgen;
 
+use serde::Serialize;
 use std::env;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+
+#[derive(Serialize, Debug)]
+struct Headphone {
+    name: String,
+    source: String,
+    path: PathBuf,
+}
+
+fn generate_headphone_index() {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("headphone_index.json");
+    let autoeq_results_path = Path::new("../PRESERVE/AutoEq/results");
+
+    println!(
+        "cargo:rerun-if-changed={}",
+        autoeq_results_path.to_str().unwrap()
+    );
+
+    let mut headphone_index: Vec<Headphone> = Vec::new();
+
+    for entry in WalkDir::new(autoeq_results_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.is_file() && path.to_str().unwrap_or("").ends_with("ParametricEQ.txt") {
+            let components: Vec<_> = path.components().collect();
+            if components.len() >= 4 {
+                // Expected path structure: ../PRESERVE/AutoEq/results/{source}/{...}/{name}/{name} ParametricEQ.txt
+                // The components we care about are relative to the `autoeq_results_path`
+                let relative_components: Vec<_> = path
+                    .strip_prefix(autoeq_results_path)
+                    .unwrap()
+                    .components()
+                    .collect();
+
+                if relative_components.len() >= 3 {
+                    let source = relative_components[0]
+                        .as_os_str()
+                        .to_string_lossy()
+                        .into_owned();
+                    let name_part = relative_components[relative_components.len() - 2]
+                        .as_os_str()
+                        .to_string_lossy()
+                        .into_owned();
+
+                    headphone_index.push(Headphone {
+                        name: name_part,
+                        source,
+                        path: path.to_path_buf(),
+                    });
+                }
+            }
+        }
+    }
+
+    let json_string = serde_json::to_string_pretty(&headphone_index)
+        .expect("Failed to serialize headphone index");
+    fs::write(&dest_path, json_string).expect("Failed to write headphone index");
+    println!(
+        "cargo:warning=open-headstage@0.1.0: Generated headphone index with {} entries.",
+        headphone_index.len()
+    );
+}
 
 fn main() {
+    // Run the headphone index generator
+    generate_headphone_index();
+
     // Tell cargo to tell rustc to link the system mysofa
     // shared library.
     println!("cargo:rustc-link-lib=mysofa");
