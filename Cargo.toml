@@ -35,8 +35,7 @@ serde_json = "1.0"
 crossbeam = "0.8"
 crossbeam-channel = "0.5"
 biquad = "0.4.1"
-strum = "0.26"
-strum_macros = "0.26"
+strum = { version = "0.26", features = ["derive"] }
 num-complex = "0.4.5"
 walkdir = "2"
 

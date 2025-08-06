@@ -1,41 +1,49 @@
-# Known Issues & Development Status
+# BUGS - 
 
-This document tracks known bugs, limitations, and the overall development status of the Open Headstage project.
+#  THIS DOCCUMENT IS NEVER PRUNED AND SHOULD ALWAYS GROW WITH PAST BUGS THAT GOT FIXED. THE GOAL IS TO KNOW HOW TO FIX REGRESSIONS, LEARN AND TRACK CURRENT BUGS.
 
----
+## 1. Build Failure During Stereo Preset Implementation
 
-## Resolved Issues & Lessons Learned
+*   **Status:** Fixed
+*   **Priority:** High
 
-### Intractable Real-Time Allocation Crashes (Resolved)
+### Root Cause Analysis
 
-*   **Original Problem:** The application suffered from a series of seemingly unrelated, intractable memory allocation crashes on the real-time audio thread. These crashes manifested in different libraries (`rustfft`, `biquad`) but shared the same root cause: performing expensive, allocating operations inside the `process()` loop.
-*   **Root Cause Analysis:** This was a systemic architectural failure rooted in a misunderstanding of real-time audio safety.
-    1.  **`rustfft` Allocation:** The initial crashes were in `rustfft`. Deep research revealed that the convenient `Fft::process()` method **always allocates a temporary scratch buffer**. The correct, allocation-free method is `Fft::process_with_scratch()`, which requires the caller to provide a pre-allocated scratch buffer. My initial fixes failed because I was resizing the *data* buffer, not providing the required *scratch* buffer.
-    2.  **`biquad` Coefficient Allocation:** After fixing the FFT crash, a new allocation crash appeared in the `biquad` library. This was traced to calling `update_band_coeffs()` on every audio sample. The coefficient calculation function (`Coefficients::from_params`) allocates memory.
-*   **Resolution (The Final, Correct Architecture):** The entire audio processing pipeline was refactored to strictly separate expensive, one-time calculations from the per-sample processing loop.
-    1.  **Command Queue for State Changes:** A `crossbeam_channel` was introduced. The UI thread is the *only* place that can change parameters using the `ParamSetter`. When it does so (e.g., applying a loaded EQ profile), it also sends a `ParamChange` message to the audio thread.
-    2.  **One-Time Updates in `process()`:** The `process()` loop's first action is to check the channel for new messages. If a message is received, it performs the expensive, allocating operations *once* (e.g., calling `update_band_coeffs`). Because this is a single, user-initiated event and not a continuous operation, it does not violate real-time safety.
-    3.  **Allocation-Free Per-Sample Loop:** The main body of the `process()` loop now only contains operations that are guaranteed to be allocation-free: reading smoothed parameter values and calling the DSP `process_block` methods.
-*   **Lesson Learned:**
-    1.  **The `process()` loop is sacred:** Absolutely no function that can allocate memory (including library functions that calculate coefficients, resize buffers, etc.) should be called on every audio sample.
-    2.  **Read Library Docs Carefully:** The `rustfft` documentation was clear about `process()` vs. `process_with_scratch()`. A failure to read it carefully cost significant time.
-    3.  **Use a Command Queue for UI-to-Audio Communication:** The correct pattern for applying complex, user-initiated changes to the audio thread is to use a message queue. The UI sets the parameters and sends a message. The audio thread receives the message and performs the one-time heavy lifting to update its internal state (e.g., filter coefficients).
+A series of build failures occurred while attempting to implement the stereo angle preset feature. The failures stemmed from two primary sources:
 
-### AutoEQ Parser Failure (Resolved)
+1.  **Incorrect `strum` Crate Configuration and Usage:**
+    *   **Problem:** There was significant confusion regarding the correct setup for the `strum` and `strum_macros` crates. This led to incorrect `Cargo.toml` entries (combining them, missing features) and consequently, incorrect `use` statements in `app/src/lib.rs` and `app/src/dsp/parametric_eq.rs`.
+    *   **Symptoms:** The compiler reported unresolved imports for traits like `Enum`, `EnumIter`, and `Display`, and errors indicating that methods like `.iter()` were not found for the enums. The `#[display(...)]` attribute was also not recognized.
+    *   **Correct Approach:** The `strum` crate requires its `derive` feature to be enabled in `Cargo.toml`. The correct enums should use `#[derive(..., strum::EnumIter, strum::Display)]`.
 
-*   **Original Problem:** The application failed to parse AutoEQ `.txt` files, logging "missing field 'Filter-Type'" errors.
-*   **Root Cause Analysis:** The initial implementation incorrectly assumed the `.txt` files were in a CSV format and used a `csv` reader with `serde`. A direct inspection of the file revealed it was a custom, space-delimited format. A subsequent rewrite had an off-by-one error when indexing the split string, causing "invalid float literal" errors.
-*   **Resolution:** The parser was completely rewritten to be a simple, line-by-line manual parser.
-    1.  It iterates over lines, checking for "Preamp:" or "Filter" prefixes.
-    2.  It uses `split_whitespace()` to tokenize the line.
-    3.  It parses the required values from the correct token indices.
-*   **Lesson Learned:**
-    1.  **Never Assume a File Format:** Always inspect a sample of the data file before writing a parser. The `.txt` extension was not indicative of a simple CSV.
-    2.  **Manual Parsing is Sometimes Simpler:** For simple, custom formats, a manual line-by-line parser can be more robust and easier to debug than trying to force a library like a CSV reader to fit a format it wasn't designed for.
-    3.  **Index with Care:** Off-by-one errors are common in manual parsing. Double-check token indices against a sample line of the source data.
+2.  **Incorrect Handling of `egui::InnerResponse`:**
+    *   **Problem:** The `egui::ComboBox` widget returns an `InnerResponse<Option<()>>`. The code attempted to directly call methods like `.map_or()` or use `if let Some(...)` on the `InnerResponse` struct itself, rather than on its `.inner` field which holds the `Option`.
+    *   **Symptoms:** The compiler repeatedly threw `mismatched types` and `method not found` errors, correctly stating that `InnerResponse` is not an `Option`.
+    *   **Correct Approach:** The `.inner` field must be accessed first. The robust way to handle this is with the pattern: `if let Some(response) = response.inner { if response.changed() { ... } }`.
 
----
-*The previous "Resolved Issues" have been preserved below for historical context.*
+### Lesson Learned
 
-### The Persistence Pitfall: A Deep Dive into `nih-plug` State Management (Resolved)
-...
+When encountering persistent build failures after modifying dependencies, the first step should be to meticulously verify `Cargo.toml` and the official documentation for the crate in question. For UI-related compiler errors, it is crucial to inspect the exact return types of the widgets being used and access nested fields (`.inner`) as required by the API, rather than making assumptions. Repeated, rapid-fire `replace` calls without re-reading the file context led to a frustrating debugging loop. A more methodical approach of read -> analyze -> write is necessary.
+
+## 2. Runtime Errors and Warnings
+
+*   **Status:** Active
+*   **Priority:** High
+
+### Root Cause Analysis
+
+1.  **AutoEQ Path Resolution:**
+    *   **Problem:** The application fails to find AutoEQ profile files because it's using a hardcoded relative path (`../PRESERVE/AutoEq/...`). This path is incorrect when the application is run from a different directory than the project root.
+    *   **Symptoms:** `Failed to parse AutoEQ file ... No such file or directory` error in the console.
+    *   **Proposed Solution:** The path to the `PRESERVE` directory should be determined at runtime relative to the location of the application executable.
+
+2.  **Incorrect Parameter Setting:**
+    *   **Problem:** Several `nih_plug` warnings (`Debug assertion failed: self.active_params.contains(param_id)`) indicate that `setter.set_parameter()` is being called without being properly enclosed in a `setter.begin_set_parameter()` and `setter.end_set_parameter()` block. This can lead to incorrect parameter updates and potential race conditions.
+    *   **Symptoms:** Console is flooded with warnings when interacting with GUI controls like sliders and buttons.
+    *   **Proposed Solution:** Audit all `setter` calls in `app/src/lib.rs` and ensure they follow the correct `begin -> set -> end` pattern.
+
+3.  **JACK Audio Server Errors:**
+    *   **Problem:** The application attempts to connect to the JACK audio server by default, which may not be running.
+    *   **Symptoms:** A series of `jack server is not running or cannot be started` errors appear on startup.
+    *   **Current State:** The application correctly falls back to the ALSA backend, so this is not a critical failure, but it does produce noise in the logs.
+    *   **Proposed Solution:** Investigate if the default audio backend can be configured more gracefully or if the JACK connection attempt can be suppressed if not explicitly requested.

@@ -110,6 +110,15 @@ The user interface is built using `egui` and follows an "immediate mode" paradig
     *   The dialog is an `egui` window that is drawn on top of the main UI. Its state is managed within the `EditorState`.
     *   When a button like "Select SOFA File" is clicked, a request is stored in `EditorState`, and the dialog's `pick_file()` method is called. The result is checked on every frame, and if a file is chosen, a `Task` is dispatched to the background thread.
 
+### 3.7. Conditional Control with Presets
+
+To provide user-friendly presets while still allowing for manual control, the plugin uses a combination of an `EnumParam` and `ui.add_enabled()`.
+
+1.  **Preset `EnumParam`:** An enum (`StereoAnglePreset`) is defined to represent the available presets, including a `Manual` variant. This enum is exposed to the host as a parameter.
+2.  **`ComboBox` for Selection:** An `egui::ComboBox` is used in the UI to allow the user to select a preset.
+3.  **Conditional Logic:** When the `ComboBox` is changed, the plugin programmatically updates the associated `FloatParam` values for the azimuth angles.
+4.  **`ui.add_enabled()` for Conditional UI:** The `ui.add_enabled()` function wraps the manual sliders. These controls are only enabled when the `Manual` preset is selected.
+
 ## 4. Build Process
 
 *   **Prerequisites:**

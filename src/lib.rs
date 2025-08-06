@@ -18,13 +18,14 @@ use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::process::Command;
-use strum::IntoEnumIterator;
+use strum::{Display, EnumIter, IntoEnumIterator};
 
 // Make sure our modules are declared
 mod autoeq_parser;
@@ -39,6 +40,17 @@ use crate::sofa::loader::MySofa;
 use crate::ui::speaker_visualizer::SpeakerVisualizer;
 use cpal::traits::{DeviceTrait, HostTrait};
 use egui_file_dialog::FileDialog;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Enum, EnumIter, Serialize, Deserialize, Display)]
+pub enum StereoAnglePreset {
+    Manual,
+    #[strum(to_string = "Equilateral (60°)")]
+    Equilateral, // 60 degrees
+    #[strum(to_string = "Near-field (70°)")]
+    Nearfield,   // 70 degrees
+    #[strum(to_string = "Far-field (45°)")]
+    Farfield,    // 45 degrees
+}
 
 const NUM_EQ_BANDS: usize = 10;
 
@@ -138,6 +150,12 @@ pub struct OpenHeadstageParams {
     #[id = "preamp_gain"]
     pub preamp_gain: FloatParam,
 
+    // TODO: Future placeholder for surround sound configuration selector
+    // This will involve a more complex enum and logic to handle various speaker layouts
+    // (5.1, 7.1, Atmos, etc.)
+    #[id = "stereo_preset"]
+    pub stereo_preset: EnumParam<StereoAnglePreset>,
+
     #[id = "az_l"]
     pub speaker_azimuth_left: FloatParam,
     #[id = "el_l"]
@@ -197,7 +215,7 @@ impl OpenHeadstageParams {
         }
 
         Self {
-            editor_state: EguiState::from_size(1380, 805),
+            editor_state: EguiState::from_size(1794, 1047),
             sofa_file_path: Arc::new(RwLock::new(config.sofa_file_path)),
             audio_host: Arc::new(RwLock::new(config.audio_host)),
             audio_device: Arc::new(RwLock::new(config.audio_device)),
@@ -219,6 +237,7 @@ impl OpenHeadstageParams {
                 0.0,
                 FloatRange::Linear { min: -20.0, max: 20.0 }
             ).with_unit(" dB").with_smoother(SmoothingStyle::Linear(50.0)),
+            stereo_preset: EnumParam::new("Stereo Preset", config.stereo_preset),
             speaker_azimuth_left: FloatParam::new(
                 "L Azimuth",
                 config.speaker_azimuth_left,
@@ -304,12 +323,18 @@ struct EditorState {
     search_query: String,
     search_results: Vec<Headphone>,
     debouncer: Debouncer,
+
+    // State for audio device selection
+    available_hosts: Vec<cpal::HostId>,
+    available_devices: Vec<String>,
+    selected_host_id: cpal::HostId,
 }
 
 impl EditorState {
     fn new(
         auto_eq_result_receiver: Arc<Mutex<Option<AutoEqProfile>>>,
         initial_eq_params: &[EqBandParams],
+        params: &OpenHeadstageParams,
     ) -> Self {
         let eq_editor_bands = initial_eq_params
             .iter()
@@ -322,6 +347,15 @@ impl EditorState {
             })
             .collect();
 
+        let available_hosts = cpal::available_hosts();
+        let selected_host_id = available_hosts
+            .iter()
+            .find(|id| id.name() == *params.audio_host.read())
+            .cloned()
+            .unwrap_or_else(|| cpal::default_host().id());
+
+        let available_devices = Self::get_output_devices_for_host(&selected_host_id);
+
         Self {
             file_dialog: FileDialog::new(),
             file_dialog_request: None,
@@ -333,7 +367,23 @@ impl EditorState {
             search_query: String::new(),
             search_results: Vec::new(),
             debouncer: Debouncer::new(Duration::from_millis(200)),
+
+            available_hosts,
+            available_devices,
+            selected_host_id,
         }
+    }
+
+    fn get_output_devices_for_host(host_id: &cpal::HostId) -> Vec<String> {
+        cpal::host_from_id(*host_id)
+            .ok()
+            .and_then(|host| host.output_devices().ok())
+            .map(|devices| {
+                devices
+                    .filter_map(|d| d.name().ok())
+                    .collect::<Vec<String>>()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -386,6 +436,8 @@ struct StandaloneConfig {
     audio_device: String,
     master_bypass: bool,
     output_gain: f32,
+    preamp_gain: f32,
+    stereo_preset: StereoAnglePreset,
     speaker_azimuth_left: f32,
     speaker_elevation_left: f32,
     speaker_azimuth_right: f32,
@@ -414,6 +466,8 @@ impl Default for StandaloneConfig {
             audio_device: default_params.audio_device.read().clone(),
             master_bypass: default_params.master_bypass.value(),
             output_gain: default_params.output_gain.value(),
+            preamp_gain: default_params.preamp_gain.value(),
+            stereo_preset: default_params.stereo_preset.value(),
             speaker_azimuth_left: default_params.speaker_azimuth_left.value(),
             speaker_elevation_left: default_params.speaker_elevation_left.value(),
             speaker_azimuth_right: default_params.speaker_azimuth_right.value(),
@@ -436,12 +490,49 @@ impl StandaloneConfig {
                 .unwrap_or_default(),
             master_bypass: false,
             output_gain: util::db_to_gain(0.0),
+            preamp_gain: 0.0,
+            stereo_preset: StereoAnglePreset::Equilateral,
             speaker_azimuth_left: -30.0,
             speaker_elevation_left: 0.0,
             speaker_azimuth_right: 30.0,
             speaker_elevation_right: 0.0,
             eq_enable: false,
             eq_bands: (0..NUM_EQ_BANDS).map(|_| BandSetting::default()).collect(),
+        }
+    }
+}
+
+fn save_standalone_config(params: &Arc<OpenHeadstageParams>) {
+    let mut bands = Vec::new();
+    for band in &params.eq_bands {
+        bands.push(BandSetting {
+            enabled: band.enabled.value(),
+            filter_type: band.filter_type.value(),
+            frequency: band.frequency.value(),
+            q: band.q.value(),
+            gain: band.gain.value(),
+        });
+    }
+
+    let config = StandaloneConfig {
+        sofa_file_path: params.sofa_file_path.read().clone(),
+        audio_host: params.audio_host.read().clone(),
+        audio_device: params.audio_device.read().clone(),
+        master_bypass: params.master_bypass.value(),
+        output_gain: params.output_gain.value(),
+        preamp_gain: params.preamp_gain.value(),
+        stereo_preset: params.stereo_preset.value(),
+        speaker_azimuth_left: params.speaker_azimuth_left.value(),
+        speaker_elevation_left: params.speaker_elevation_left.value(),
+        speaker_azimuth_right: params.speaker_azimuth_right.value(),
+        speaker_elevation_right: params.speaker_elevation_right.value(),
+        eq_enable: params.eq_enable.value(),
+        eq_bands: bands,
+    };
+
+    if let Some(config_path) = get_config_path() {
+        if let Ok(json_str) = serde_json::to_string_pretty(&config) {
+            let _ = fs::write(config_path, json_str);
         }
     }
 }
@@ -466,6 +557,14 @@ fn get_config_path() -> Option<PathBuf> {
     fs::create_dir_all(&config_path).ok()?;
     config_path.push("open_headstage_standalone.json");
     Some(config_path)
+}
+
+fn get_data_dir() -> Option<PathBuf> {
+    let mut data_dir = env::current_exe().ok()?;
+    data_dir.pop(); // remove executable name
+    data_dir.pop(); // remove 'debug' or 'release'
+    data_dir.pop(); // remove 'target'
+    Some(data_dir)
 }
 
 impl Plugin for OpenHeadstagePlugin {
@@ -501,6 +600,7 @@ impl Plugin for OpenHeadstagePlugin {
         let editor_state = EditorState::new(
             auto_eq_result_receiver,
             &self.params.eq_bands,
+            &self.params,
         );
 
         create_egui_editor(
@@ -530,6 +630,117 @@ impl Plugin for OpenHeadstagePlugin {
                                 .show(ui, |ui| {
                                     ui.label("Output Gain");
                                     ui.add(widgets::ParamSlider::for_param(&params.output_gain, setter));
+                                    ui.label("Preamp Gain");
+                                    ui.add(widgets::ParamSlider::for_param(&params.preamp_gain, setter));
+                                });
+
+                                egui::collapsing_header::CollapsingHeader::new(
+                                    egui::RichText::new("System Settings").size(22.0),
+                                )
+                                .default_open(true)
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        if ui.button("Save Settings").clicked() {
+                                            save_standalone_config(&params);
+                                        }
+                                        if ui.button("Reset to Default").clicked() {
+                                            let default_config = StandaloneConfig::default();
+                                            let default_params = OpenHeadstageParams::new(default_config);
+
+                                            // Programmatically reset all parameters
+                                            setter.begin_set_parameter(&params.master_bypass);
+                                            setter.set_parameter(&params.master_bypass, default_params.master_bypass.default_plain_value());
+                                            setter.end_set_parameter(&params.master_bypass);
+
+                                            setter.begin_set_parameter(&params.output_gain);
+                                            setter.set_parameter(&params.output_gain, default_params.output_gain.default_plain_value());
+                                            setter.end_set_parameter(&params.output_gain);
+                                            
+                                            setter.begin_set_parameter(&params.preamp_gain);
+                                            setter.set_parameter(&params.preamp_gain, default_params.preamp_gain.default_plain_value());
+                                            setter.end_set_parameter(&params.preamp_gain);
+
+                                            setter.begin_set_parameter(&params.stereo_preset);
+                                            setter.set_parameter(&params.stereo_preset, default_params.stereo_preset.default_plain_value());
+                                            setter.end_set_parameter(&params.stereo_preset);
+
+                                            setter.begin_set_parameter(&params.speaker_azimuth_left);
+                                            setter.set_parameter(&params.speaker_azimuth_left, default_params.speaker_azimuth_left.default_plain_value());
+                                            setter.end_set_parameter(&params.speaker_azimuth_left);
+
+                                            setter.begin_set_parameter(&params.speaker_elevation_left);
+                                            setter.set_parameter(&params.speaker_elevation_left, default_params.speaker_elevation_left.default_plain_value());
+                                            setter.end_set_parameter(&params.speaker_elevation_left);
+
+                                            setter.begin_set_parameter(&params.speaker_azimuth_right);
+                                            setter.set_parameter(&params.speaker_azimuth_right, default_params.speaker_azimuth_right.default_plain_value());
+                                            setter.end_set_parameter(&params.speaker_azimuth_right);
+
+                                            setter.begin_set_parameter(&params.speaker_elevation_right);
+                                            setter.set_parameter(&params.speaker_elevation_right, default_params.speaker_elevation_right.default_plain_value());
+                                            setter.end_set_parameter(&params.speaker_elevation_right);
+
+                                            setter.begin_set_parameter(&params.eq_enable);
+                                            setter.set_parameter(&params.eq_enable, default_params.eq_enable.default_plain_value());
+                                            setter.end_set_parameter(&params.eq_enable);
+
+                                            for (i, band_params) in params.eq_bands.iter().enumerate() {
+                                                let default_band = &default_params.eq_bands[i];
+                                                setter.begin_set_parameter(&band_params.enabled);
+                                                setter.set_parameter(&band_params.enabled, default_band.enabled.default_plain_value());
+                                                setter.end_set_parameter(&band_params.enabled);
+
+                                                setter.begin_set_parameter(&band_params.filter_type);
+                                                setter.set_parameter(&band_params.filter_type, default_band.filter_type.default_plain_value());
+                                                setter.end_set_parameter(&band_params.filter_type);
+
+                                                setter.begin_set_parameter(&band_params.frequency);
+                                                setter.set_parameter(&band_params.frequency, default_band.frequency.default_plain_value());
+                                                setter.end_set_parameter(&band_params.frequency);
+
+                                                setter.begin_set_parameter(&band_params.q);
+                                                setter.set_parameter(&band_params.q, default_band.q.default_plain_value());
+                                                setter.end_set_parameter(&band_params.q);
+
+                                                setter.begin_set_parameter(&band_params.gain);
+                                                setter.set_parameter(&band_params.gain, default_band.gain.default_plain_value());
+                                                setter.end_set_parameter(&band_params.gain);
+                                            }
+                                        }
+                                    });
+
+                                    ui.separator();
+
+                                    let selected_host_name = state.selected_host_id.name();
+                                    egui::ComboBox::from_label("Host")
+                                        .selected_text(selected_host_name)
+                                        .show_ui(ui, |ui| {
+                                            for host_id in &state.available_hosts {
+                                                if ui.selectable_value(&mut state.selected_host_id, host_id.clone(), host_id.name()).changed() {
+                                                    state.available_devices = EditorState::get_output_devices_for_host(&state.selected_host_id);
+                                                    *params.audio_host.write() = state.selected_host_id.name().to_string();
+                                                    // Select the default device for the new host
+                                                    if let Some(default_device) = cpal::host_from_id(state.selected_host_id.clone()).ok().and_then(|h| h.default_output_device()).and_then(|d| d.name().ok()) {
+                                                        *params.audio_device.write() = default_device;
+                                                    } else if let Some(first_device) = state.available_devices.first() {
+                                                        *params.audio_device.write() = first_device.clone();
+                                                    } else {
+                                                        *params.audio_device.write() = String::new();
+                                                    }
+                                                }
+                                            }
+                                        });
+
+                                    let mut selected_device_name = params.audio_device.read().clone();
+                                    egui::ComboBox::from_label("Device")
+                                        .selected_text(&selected_device_name)
+                                        .show_ui(ui, |ui| {
+                                            for device_name in &state.available_devices {
+                                                if ui.selectable_value(&mut selected_device_name, device_name.clone(), device_name).changed() {
+                                                    *params.audio_device.write() = selected_device_name.clone();
+                                                }
+                                            }
+                                        });
                                 });
 
                                 egui::collapsing_header::CollapsingHeader::new(
@@ -543,34 +754,94 @@ impl Plugin for OpenHeadstagePlugin {
                                         right_azimuth: params.speaker_azimuth_right.value(),
                                         right_elevation: params.speaker_elevation_right.value(),
                                     });
+
+                                    // Get the current preset value
+                                    let mut selected_preset = params.stereo_preset.value();
+                                    let mut changed = false;
+
+                                    // Create the ComboBox and check if its value changed
+                                    ui.horizontal(|ui| {
+                                        ui.label("Preset");
+                                        egui::ComboBox::from_id_source("stereo_preset_selector")
+                                            .selected_text(selected_preset.to_string())
+                                            .show_ui(ui, |ui| {
+                                                for preset in StereoAnglePreset::iter() {
+                                                    if ui.selectable_value(&mut selected_preset, preset, preset.to_string()).changed() {
+                                                        changed = true;
+                                                    }
+                                                }
+                                            });
+                                    });
+
+                                    // If the user selected a new preset, apply the logic
+                                    if changed {
+                                        setter.begin_set_parameter(&params.stereo_preset);
+                                        setter.set_parameter(&params.stereo_preset, selected_preset);
+                                        setter.end_set_parameter(&params.stereo_preset);
+
+                                        let (az_l, az_r) = match selected_preset {
+                                            StereoAnglePreset::Equilateral => (-30.0, 30.0),
+                                            StereoAnglePreset::Nearfield => (-35.0, 35.0),
+                                            StereoAnglePreset::Farfield => (-22.5, 22.5),
+                                            StereoAnglePreset::Manual => (params.speaker_azimuth_left.value(), params.speaker_azimuth_right.value()),
+                                        };
+
+                                        if selected_preset != StereoAnglePreset::Manual {
+                                            setter.begin_set_parameter(&params.speaker_azimuth_left);
+                                            setter.set_parameter(&params.speaker_azimuth_left, az_l);
+                                            setter.end_set_parameter(&params.speaker_azimuth_left);
+
+                                            setter.begin_set_parameter(&params.speaker_azimuth_right);
+                                            setter.set_parameter(&params.speaker_azimuth_right, az_r);
+                                            setter.end_set_parameter(&params.speaker_azimuth_right);
+                                        }
+                                    }
+
+                                    // Determine if the sliders should be enabled
+                                    let is_manual = selected_preset == StereoAnglePreset::Manual;
+
+                                    // The Grid for the sliders
                                     egui::Grid::new("speaker_grid")
-                                        .num_columns(2)
+                                        .num_columns(3)
                                         .spacing([40.0, 4.0])
                                         .show(ui, |ui| {
+                                            ui.label(""); // Dummy label for alignment
                                             ui.label("Left");
                                             ui.label("Right");
                                             ui.end_row();
 
                                             ui.label("Azimuth");
-                                            ui.add(widgets::ParamSlider::for_param(
-                                                &params.speaker_azimuth_left,
-                                                setter,
-                                            ));
-                                            ui.add(widgets::ParamSlider::for_param(
-                                                &params.speaker_azimuth_right,
-                                                setter,
-                                            ));
+                                            // Use ui.add_enabled to conditionally disable the sliders
+                                            if ui.add_enabled(is_manual, widgets::ParamSlider::for_param(&params.speaker_azimuth_left, setter)).changed() {
+                                                setter.begin_set_parameter(&params.speaker_azimuth_left);
+                                                setter.set_parameter(&params.speaker_azimuth_left, params.speaker_azimuth_left.value());
+                                                setter.end_set_parameter(&params.speaker_azimuth_left);
+                                            }
+                                            if ui.add_enabled(is_manual, widgets::ParamSlider::for_param(&params.speaker_azimuth_right, setter)).changed() {
+                                                setter.begin_set_parameter(&params.speaker_azimuth_right);
+                                                setter.set_parameter(&params.speaker_azimuth_right, params.speaker_azimuth_right.value());
+                                                setter.end_set_parameter(&params.speaker_azimuth_right);
+                                            }
                                             ui.end_row();
 
                                             ui.label("Elevation");
-                                            ui.add(widgets::ParamSlider::for_param(
+                                            // Elevation is always enabled in this design
+                                            if ui.add(widgets::ParamSlider::for_param(
                                                 &params.speaker_elevation_left,
                                                 setter,
-                                            ));
-                                            ui.add(widgets::ParamSlider::for_param(
+                                            )).changed() {
+                                                setter.begin_set_parameter(&params.speaker_elevation_left);
+                                                setter.set_parameter(&params.speaker_elevation_left, params.speaker_elevation_left.value());
+                                                setter.end_set_parameter(&params.speaker_elevation_left);
+                                            }
+                                            if ui.add(widgets::ParamSlider::for_param(
                                                 &params.speaker_elevation_right,
                                                 setter,
-                                            ));
+                                            )).changed() {
+                                                setter.begin_set_parameter(&params.speaker_elevation_right);
+                                                setter.set_parameter(&params.speaker_elevation_right, params.speaker_elevation_right.value());
+                                                setter.end_set_parameter(&params.speaker_elevation_right);
+                                            }
                                             ui.end_row();
                                         });
                                 });
@@ -813,56 +1084,68 @@ impl Plugin for OpenHeadstagePlugin {
         let sofa_loader = self.sofa_loader.clone();
         let database_updated = self.database_updated.clone();
 
-        Box::new(move |task| match task {
-            Task::LoadSofa(path) => {
-                nih_log!("BACKGROUND: Loading SOFA file from: {:?}", path);
-                match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
-                    Ok(loader) => {
-                        nih_log!("BACKGROUND: Successfully loaded SOFA file: {:?}", path);
-                        *sofa_loader.lock() = Some(loader);
-                    }
-                    Err(e) => {
-                        nih_log!("BACKGROUND: Failed to load SOFA file '{:?}': {:?}", path, e);
-                        *sofa_loader.lock() = None;
+        Box::new(move |task| {
+            let data_dir = match get_data_dir() {
+                Some(dir) => dir,
+                None => {
+                    nih_log!("BACKGROUND: Could not determine data directory. Tasks will fail.");
+                    return;
+                }
+            };
+
+            match task {
+                Task::LoadSofa(path) => {
+                    nih_log!("BACKGROUND: Loading SOFA file from: {:?}", path);
+                    match MySofa::open(path.to_string_lossy().as_ref(), sample_rate) {
+                        Ok(loader) => {
+                            nih_log!("BACKGROUND: Successfully loaded SOFA file: {:?}", path);
+                            *sofa_loader.lock() = Some(loader);
+                        }
+                        Err(e) => {
+                            nih_log!("BACKGROUND: Failed to load SOFA file '{:?}': {:?}", path, e);
+                            *sofa_loader.lock() = None;
+                        }
                     }
                 }
-            }
-            Task::LoadAutoEq(path, result_mutex) => {
-                nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", path);
-                match parse_autoeq_file(&path) {
-                    Ok(profile) => {
-                        nih_log!(
-                            "BACKGROUND: Successfully parsed AutoEQ profile from {:?}.",
-                            path
-                        );
-                        *result_mutex.lock() = Some(profile);
-                    }
-                    Err(e) => {
-                        nih_log!(
-                            "BACKGROUND: Failed to parse AutoEQ file '{:?}': {:?}",
-                            path,
-                            e
-                        );
+                Task::LoadAutoEq(path, result_mutex) => {
+                    let absolute_path = data_dir.join(&path);
+                    nih_log!("BACKGROUND: Loading AutoEQ profile from: {:?}", absolute_path);
+                    match parse_autoeq_file(&absolute_path) {
+                        Ok(profile) => {
+                            nih_log!(
+                                "BACKGROUND: Successfully parsed AutoEQ profile from {:?}.",
+                                absolute_path
+                            );
+                            *result_mutex.lock() = Some(profile);
+                        }
+                        Err(e) => {
+                            nih_log!(
+                                "BACKGROUND: Failed to parse AutoEQ file '{:?}': {:?}",
+                                absolute_path,
+                                e
+                            );
+                        }
                     }
                 }
-            }
-            Task::UpdateHeadphoneDatabase => {
-                nih_log!("BACKGROUND: Updating headphone database...");
-                let git_pull_status = Command::new("git")
-                    .arg("pull")
-                    .current_dir("../PRESERVE/AutoEq")
-                    .status();
-                
-                match git_pull_status {
-                    Ok(status) if status.success() => {
-                        nih_log!("BACKGROUND: Git pull successful. Re-indexing...");
-                        database_updated.store(true, Ordering::Relaxed);
-                    }
-                    Ok(status) => {
-                        nih_log!("BACKGROUND: Git pull failed with status: {}", status);
-                    }
-                    Err(e) => {
-                        nih_log!("BACKGROUND: Failed to execute git pull: {}", e);
+                Task::UpdateHeadphoneDatabase => {
+                    let autoeq_dir = data_dir.join("PRESERVE/AutoEq");
+                    nih_log!("BACKGROUND: Updating headphone database in {:?}...", autoeq_dir);
+                    let git_pull_status = Command::new("git")
+                        .arg("pull")
+                        .current_dir(&autoeq_dir)
+                        .status();
+                    
+                    match git_pull_status {
+                        Ok(status) if status.success() => {
+                            nih_log!("BACKGROUND: Git pull successful. Re-indexing...");
+                            database_updated.store(true, Ordering::Relaxed);
+                        }
+                        Ok(status) => {
+                            nih_log!("BACKGROUND: Git pull failed with status: {}", status);
+                        }
+                        Err(e) => {
+                            nih_log!("BACKGROUND: Failed to execute git pull in {:?}: {}", autoeq_dir, e);
+                        }
                     }
                 }
             }
@@ -940,4 +1223,3 @@ impl Plugin for OpenHeadstagePlugin {
         ProcessStatus::Normal
     }
 }
-

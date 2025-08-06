@@ -18,9 +18,9 @@ use biquad::{Biquad, Coefficients, DirectForm2Transposed, ToHertz, Type};
 use nih_plug::prelude::Enum;
 use num_complex::Complex;
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumIter;
+use strum::{Display, EnumIter};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default, Display)]
 #[allow(dead_code)]
 pub enum FilterType {
     #[default]

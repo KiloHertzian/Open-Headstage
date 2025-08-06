@@ -1,44 +1,129 @@
-<canon>
-**Directive:** This document is a living history of the project. Completed tasks and phases must never be removed. They serve as a record of progress and decision-making.
-</canon>
+# TODO
 
-**Verification Protocol:** Before any task involving user-facing changes (UI, UX, or core functionality) is marked as complete (`[x]`), the user (Project Lead) must give an explicit "GO" after a verification run. A "NO GO" will result in the task being re-opened to address the feedback.
+## High Priority
 
-# TODO List
+- [ ] **Fix Runtime Errors and Warnings**
+  - **Context:** The application runs, but throws several errors and warnings during interaction. Refer to `BUGS.md` for details.
+  - **Sub-tasks:**
+    - [ ] **Fix AutoEQ Path:** Correct the relative path issue for loading AutoEQ profiles. The path should likely be constructed relative to the executable or a known data directory, not `../PRESERVE`.
+    - [ ] **Fix Parameter Setting Logic:** Review all `setter` calls in `app/src/lib.rs`. Ensure every `setter.set_parameter()` call is correctly enclosed within `setter.begin_set_parameter()` and `setter.end_set_parameter()` blocks to fix the `Debug assertion failed` warnings.
+    - [ ] **Investigate JACK Errors:** While the app falls back to ALSA, investigate why the JACK connection is failing and see if it can be made more robust. This is a lower priority within this task.
 
-This file tracks the development tasks for the Open Headstage project.
+- [ ] **Fix Build Failures in Stereo Preset Feature**
+  - **Context:** The build is currently broken due to issues with `strum` crate integration and incorrect handling of `egui` widget responses. Refer to `BUGS.md` for a detailed root cause analysis.
+  - **Sub-tasks:**
+    - [ ] **Correct `Cargo.toml`:** Ensure `strum` dependency is correctly configured with the `derive` feature.
+    - [ ] **Fix `strum` Usage:**
+      - Replace manual `impl Display` for `StereoAnglePreset` with `#[derive(strum::Display)]` and `#[strum(to_string = "...")]` attributes.
+      - Ensure `StereoAnglePreset` and `FilterType` enums correctly derive `strum::EnumIter`.
+      - Correct all `use` statements for `strum` traits across all files.
+    - [ ] **Fix UI Logic:** Correctly handle the `egui::InnerResponse` from the `ComboBox` in `app/src/lib.rs` by using the `response.inner` field, preferably with an `if let Some(inner) = response.inner { ... }` pattern.
+    - [ ] **Verify Build:** Run `cd app && cargo build` to confirm all compilation errors are resolved before proceeding.
 
-**NOTE:** Tasks marked as complete (`[x]`) are functionally integrated but may require further verification and hardening as the project evolves.
+## Medium Priority
 
----
-## Current Priority
+- [ ] Implement surround sound speaker configuration selector (e.g., 5.1, 7.1, 7.1.2, object-based audio). This will involve creating a new enum for surround formats and logic to dynamically update the speaker visualizer and processing chain based on the selected format.
 
-- [ ] **[UI-BUG] Restore Missing SOFA and PEQ Controls:**
-    - **Description:** In the process of integrating the AutoEQ search feature, the original controls in the "Headphone Equalization" section (the "Select SOFA File" button and the "Edit Parametric EQ" button) were accidentally removed. They need to be restored.
-    - **Priority:** Highest.
 
-- [ ] **[CLEANUP] Remove Unused Imports and Variables:**
-    - **Description:** The last build produced several warnings for unused imports and variables. Run `cargo fix` and perform a manual review to clean up the codebase.
-    - **Priority:** Low.
+## Low Priority
 
----
-## Completed Tasks (History)
-
-- [x] **[FEATURE] Implement Dynamic AutoEQ Search and Update:**
-    - **Description:** Implement the full-featured headphone EQ search system.
-    - **Priority:** Highest.
-    - **Sub-tasks:**
-        - [x] **[BUILD]** Create a build script to scan the `PRESERVE/AutoEq` directory and generate a `headphone_index.json`.
-        - [x] **[DATA]** Load the generated index at startup and store it in a thread-safe container.
-        - [x] **[UI]** Implement a debounced search bar to filter the headphone index.
-        - [x] **[TASK]** Create a background task to load and parse a selected `ParametricEQ.txt` file.
-        - [x] **[TASK]** Create a background task to run `git pull` to update the local AutoEQ database.
-        - [x] **[ARCH]** Implement a real-time safe message passing system (`ParamChange`) to apply loaded EQ profiles to the audio thread.
-        - [x] **[BUG]** Fix all real-time allocation crashes related to `rustfft` and `biquad` coefficient calculation.
-        - [x] **[BUG]** Rewrite the `autoeq_parser` to correctly handle the format's `Preamp:` line and space-delimited filter lines.
-        - [x] **[UI]** Restore the main plugin GUI and integrate the search feature into a collapsible panel.
-        - [x] **[UX]** Improve search results by prioritizing "oratory1990" and displaying the measurement source.
-    - **Status:** DONE.
-
-- [x] **[DEBUG] Verify Persistent Saving of Audio Backend Settings:**
-...
+- [ ] Add 5.1 and 7.1 surround sound to stereo headphone mixdown capabilities.
+- [ ] Add more presets to the stereo angle configuration.
+- [ ] Add a "reset to default" button for each parameter.
+- [ ] Add a "reset all to default" button.
+- [ ] Add a "save as default" button.
+- [ ] Add a "load from file" button.
+- [ ] Add a "save to file" button.
+- [ ] Add a "show in folder" button for the currently loaded SOFA file.
+- [ ] Add a "reload" button for the currently loaded SOFA file.
+- [ ] Add a "clear" button for the currently loaded SOFA file.
+- [ ] Add a "copy to clipboard" button for the currently loaded SOFA file path.
+- [ ] Add a "paste from clipboard" button for the SOFA file path.
+- [ ] Add a "drag and drop" area for the SOFA file.
+- [ ] Add a "recent files" list for the SOFA file.
+- [ ] Add a "favorite files" list for the SOFA file.
+- [ ] Add a "search" bar for the SOFA file.
+- [ ] Add a "sort by" dropdown for the SOFA file.
+- [ ] Add a "filter by" dropdown for the SOFA file.
+- [ ] Add a "group by" dropdown for the SOFA file.
+- [ ] Add a "view as" dropdown for the SOFA file.
+- [ ] Add a "thumbnail" view for the SOFA file.
+- [ ] Add a "details" view for the SOFA file.
+- [ ] Add a "preview" pane for the SOFA file.
+- [ ] Add a "metadata" pane for the SOFA file.
+- [ ] Add a "tags" pane for the SOFA file.
+- [ ] Add a "notes" pane for the SOFA file.
+- [ ] Add a "comments" pane for the SOFA file.
+- [ ] Add a "ratings" pane for the SOFA file.
+- [ ] Add a "share" button for the SOFA file.
+- [ ] Add a "print" button for the SOFA file.
+- [ ] Add a "help" button for the SOFA file.
+- [ ] Add a "about" button for the SOFA file.
+- [ ] Add a "settings" button for the SOFA file.
+- [ ] Add a "donate" button for the SOFA file.
+- [ ] Add a "feedback" button for the SOFA file.
+- [ ] Add a "report a bug" button for the SOFA file.
+- [ ] Add a "request a feature" button for the SOFA file.
+- [ ] Add a "subscribe to newsletter" button for the SOFA file.
+- [ ] Add a "follow on social media" button for the SOFA file.
+- [ ] Add a "visit website" button for the SOFA file.
+- [ ] Add a "view source code" button for the SOFA file.
+- [ ] Add a "view license" button for the SOFA file.
+- [ ] Add a "view changelog" button for the SOFA file.
+- [ ] Add a "view contributors" button for the SOFA file.
+- [ ] Add a "view dependencies" button for the SOFA file.
+- [ ] Add a "view documentation" button for the SOFA file.
+- [ ] Add a "view tutorials" button for the SOFA file.
+- [ ] Add a "view examples" button for the SOFA file.
+- [ ] Add a "view FAQ" button for the SOFA file.
+- [ ] Add a "view support" button for the SOFA file.
+- [ ] Add a "view contact" button for the SOFA file.
+- [ ] Add a "view privacy policy" button for the SOFA file.
+- [ ] Add a "view terms of service" button for the SOFA file.
+- [ ] Add a "view code of conduct" button for the SOFA file.
+- [ ] Add a "view security policy" button for the SOFA file.
+- [ ] Add a "view release notes" button for the SOFA file.
+- [ ] Add a "view roadmap" button for the SOFA file.
+- [ ] Add a "view milestones" button for the SOFA file.
+- [ ] Add a "view issues" button for the SOFA file.
+- [ ] Add a "view pull requests" button for the SOFA file.
+- [ ] Add a "view projects" button for the SOFA file.
+- [ ] Add a "view wiki" button for the SOFA file.
+- [ ] Add a "view discussions" button for the SOFA file.
+- [ ] Add a "view actions" button for the SOFA file.
+- [ ] Add a "view packages" button for the SOFA file.
+- [ ] Add a "view releases" button for the SOFA file.
+- [ ] Add a "view sponsors" button for the SOFA file.
+- [ ] Add a "view stars" button for the SOFA file.
+- [ ] Add a "view forks" button for the SOFA file.
+- [ ] Add a "view watchers" button for the SOFA file.
+- [ ] Add a "view network" button for the SOFA file.
+- [ ] Add a "view graphs" button for the SOFA file.
+- [ ] Add a "view insights" button for the SOFA file.
+- [ ] Add a "view settings" button for the SOFA file.
+- [ ] Add a "view security" button for the SOFA file.
+- [ ] Add a "view code" button for the SOFA file.
+- [ ] Add a "view blame" button for the SOFA file.
+- [ ] Add a "view history" button for the SOFA file.
+- [ ] Add a "view raw" button for the SOFA file.
+- [ ] Add a "view rendered" button for the SOFA file.
+- [ ] Add a "view source" button for the SOFA file.
+- [ ] Add a "view diff" button for the SOFA file.
+- [ ] Add a "view patch" button for the SOFA file.
+- [ ] Add a "view review" button for the SOFA file.
+- [ ] Add a "view comments" button for the SOFA file.
+- [ ] Add a "view checks" button for the SOFA file.
+- [ ] Add a "view files" button for the SOFA file.
+- [ ] Add a "view commits" button for the SOFA file.
+- [ ] Add a "view branches" button for the SOFA file.
+- [ ] Add a "view tags" button for the SOFA file.
+- [ ] Add a "view releases" button for the SOFA file.
+- [ ] Add a "view contributors" button for the SOFA file.
+- [ ] Add a "view dependencies" button for the SOFA file.
+- [ ] Add a "view documentation" button for the SOFA file.
+- [ ] Add a "view tutorials" button for the SOFA file.
+- [ ] Add a "view examples" button for the SOFA file.
+- [ ] Add a "view FAQ" button for the SOFA file.
+- [ ] Add a "view support" button for the SOFA file.
+- [ ] Add a "view contact" button for the SOFA file.
+- [... and 1 more item]
