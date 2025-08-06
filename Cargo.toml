@@ -5,6 +5,9 @@ edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.87"
 
+[workspace]
+members = [".", "xtask"]
+
 [dependencies]
 # VST3 support has been explicitly disabled to avoid the GPLv3 license of the VST3 SDK.
 # We are focusing on CLAP as the primary plugin format, which uses the permissive MIT license.
@@ -38,6 +41,7 @@ biquad = "0.4.1"
 strum = { version = "0.26", features = ["derive"] }
 num-complex = "0.4.5"
 walkdir = "2"
+xtask = { path = "xtask" }
 
 [features]
 default = ["ui"]
