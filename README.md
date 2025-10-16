@@ -22,125 +22,26 @@
 
 Open Headstage is a professional-grade audio processing tool for enthusiasts and professionals who want to achieve a more natural and immersive listening experience on headphones. By using advanced digital signal processing (DSP), it simulates the way sound from stereo speakers interacts with your head and ears, creating a "phantom" soundstage in front of you.
 
-This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. The core technology is also planned to be bundled as a **CLAP plugin** for integration into digital audio workstations (DAWs), although this is a secondary goal and full DAW compatibility is still under development.
+This project is developed as a **standalone application first**, ensuring a stable and feature-rich experience on Linux, Windows, and macOS. The core technology is also bundled as a **CLAP plugin** for integration into digital audio workstations (DAWs), although this is currently experimental.
 
 ### Core Features
-<div style="font-size: 0.9em;">
 
 *   **Binaural Convolution Engine:** Uses Head-Related Transfer Functions (HRTFs) to accurately position sound in a 3D space.
 *   **SOFA File Support:** Load your own HRTF profiles in the standard SOFA format for a personalized experience.
 *   **10-Band Parametric EQ:** Correct your headphone's frequency response with a powerful parametric equalizer.
-*   **AutoEQ Integration:** Easily import and apply headphone correction profiles from the popular AutoEQ project.
-*   **Standalone First:** A dedicated application for Linux, Windows, and macOS with selectable audio backends (JACK, ALSA, etc.).
-*   **CLAP Plugin Support (Experimental):** An experimental CLAP plugin is available but is not yet consistently detected or loaded by all DAWs.
+*   **AutoEQ Integration:** Easily search and apply headphone correction profiles from the popular AutoEQ project database.
+*   **Standalone First:** A dedicated application for Linux, Windows, and macOS with selectable audio backends.
+*   **CLAP Plugin Support (Experimental):** An experimental CLAP plugin is available for use in compatible DAWs.
 
-</div>
+## Architecture
 
-## Signal Path & Architecture
-
-The application is designed with a clear separation between the user interface, background data loading, and the real-time audio processing thread to ensure a responsive and glitch-free experience.
-
-### High-Level Architecture
-
-This diagram shows the main components of the Open Headstage application and how they interact with the user and the underlying system.
-
-```mermaid
-graph TD
-    %% === Style Definitions ===
-    classDef user fill:#60a5fa,stroke:#2563eb,color:#fff,font-weight:bold
-    classDef system fill:#a78bfa,stroke:#6d28d9,color:#fff,font-weight:bold
-    classDef ui fill:#4ade80,stroke:#16a34a,color:#333
-    classDef data fill:#facc15,stroke:#ca8a04,color:#333
-    classDef realtime fill:#f87171,stroke:#b91c1c,color:#fff
-    classDef io fill:#9ca3af,stroke:#4b5563,color:#fff
-
-    %% === Node Declarations ===
-    subgraph "External World"
-        direction LR
-        User([User]):::user
-        FileSystem([File System]):::system
-        AudioOS[("Audio OS<br>(JACK, ALSA, etc.)")]:::system
-    end
-
-    subgraph "Open Headstage Application"
-        direction TB
-        
-        subgraph "UI & Control Plane (Main Thread)"
-            direction LR
-            UI(Egui UI):::ui
-            PluginState(Plugin State &<br>Parameters):::ui
-        end
-
-        subgraph "Data Loading (Background Threads)"
-            direction LR
-            SofaLoader(SOFA Loader):::data
-            AutoEQLoader(AutoEQ Loader):::data
-        end
-
-        subgraph "Real-time Audio Engine (Audio Thread)"
-            direction LR
-            AudioInput[("Stereo In")]:::io --> AudioEngine("DSP Core"):::realtime --> AudioOutput[("Stereo Out")]:::io
-        end
-    end
-
-    %% === Connections ===
-    User -- "Controls" --> UI
-    UI -- "Manages" --> PluginState
-    
-    UI -. "Triggers Load" .-> SofaLoader
-    UI -. "Triggers Load" .-> AutoEQLoader
-
-    FileSystem -- "Reads .sofa file" --> SofaLoader
-    FileSystem -- "Reads .txt file" --> AutoEQLoader
-
-    SofaLoader -. "Provides HRTFs" .-> AudioEngine
-    AutoEQLoader -. "Provides EQ Settings" .-> AudioEngine
-    
-    PluginState -- "Configures" --> AudioEngine
-
-    AudioOS -- "Provides" --> AudioInput
-    AudioOutput -- "Sends to" --> AudioOS
-```
-
-### Real-time Audio Signal Flow
-
-This diagram details the specific stages of the real-time digital signal processing (DSP) chain that your audio passes through.
-
-```mermaid
-graph LR
-    %% === Style Definitions ===
-    classDef io fill:#9ca3af,stroke:#4b5563,color:#fff,font-weight:bold
-    classDef dsp fill:#4ade80,stroke:#16a34a,color:#333
-    classDef control fill:#facc15,stroke:#ca8a04,color:#333
-    classDef data fill:#a78bfa,stroke:#6d28d9,color:#fff
-
-    %% === Node Declarations ===
-    subgraph "DSP Chain (Audio Thread)"
-        direction LR
-        Input([Stereo Input]):::io --> EQ(10-Band<br>Parametric EQ):::dsp
-        EQ --> Convolution(Binaural<br>Convolution):::dsp
-        Convolution --> Gain(Output<br>Gain):::dsp
-        Gain --> Output([Stereo Output]):::io
-    end
-
-    subgraph "Control & Data (from Main Thread)"
-        direction TB
-        PluginState(Plugin Parameters):::control
-        HRTFData(HRTF Data):::data
-    end
-
-    %% === Connections ===
-    PluginState -- "EQ Settings" --> EQ
-    PluginState -- "Speaker Angles" --> Convolution
-    PluginState -- "Gain Level" --> Gain
-    HRTFData -- "HRIRs" --> Convolution
-```
+For a detailed explanation of the project's technical architecture, including diagrams of the data flow and DSP signal chain, please see our [**ARCHITECTURE.md**](./ARCHITECTURE.md) document.
 
 ## Getting Started
 
-### Prerequisites
-
 To build Open Headstage from source, you will need the following tools and libraries.
+
+### Prerequisites
 
 *   **Rust:** Version 1.87.0 or newer.
 *   **System Dependencies:**
@@ -158,10 +59,11 @@ To build Open Headstage from source, you will need the following tools and libra
 
 ### Building from Source
 
-1.  **Clone the repository:**
+1.  **Clone the repository and its submodules:**
+    The AutoEQ database is included as a submodule.
     ```bash
-    git clone https://github.com/your-username/Open-Headstage.git
-    cd Open-Headstage/app
+    git clone --recurse-submodules https://github.com/your-username/Open-Headstage.git
+    cd Open-Headstage
     ```
 2.  **Build the standalone application:**
     ```bash
@@ -172,17 +74,12 @@ To build Open Headstage from source, you will need the following tools and libra
     ```bash
     ./target/release/open-headstage
     ```
-4.  **Build the CLAP plugin (Manual & Experimental):**
-    The CLAP plugin (`.so` file) must be manually copied into a `.clap` bundle. Note that DAW detection is not guaranteed.
+4.  **Build and install the CLAP plugin (Optional):**
+    You can use the `xtask` crate to build and install the plugin into the correct system directory.
     ```bash
-    # First, ensure the library is built
-    cargo build --release
-    # Create the bundle directory
-    mkdir -p ~/.clap/open-headstage.clap
-    # Copy the shared library into the bundle
-    cp target/release/libopen_headstage.so ~/.clap/open-headstage.clap/open-headstage.so
+    cargo xtask bundle open-headstage --release
     ```
-    For more details on plugin validation, refer to the "Operational Reminder (Plugin Validation)" in `TODO.md`.
+    This will create a `.clap` bundle and copy it to `~/.clap` on Linux/macOS.
 
 ## How to Contribute
 

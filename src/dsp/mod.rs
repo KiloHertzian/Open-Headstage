@@ -16,5 +16,13 @@
 
 /// This module contains Digital Signal Processing (DSP) components
 /// for the Open Headstage plugin.
+///
+/// It is organized into submodules, each responsible for a specific
+/// aspect of audio processing.
+///
+/// - `convolution`: Implements real-time, partitioned convolution for applying
+///   Head-Related Impulse Responses (HRIRs) to simulate binaural audio.
+/// - `parametric_eq`: Provides a multi-band parametric equalizer for frequency
+///   response correction.
 pub mod convolution;
 pub mod parametric_eq;

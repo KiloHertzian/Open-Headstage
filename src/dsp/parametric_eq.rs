@@ -20,34 +20,53 @@ use num_complex::Complex;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 
+/// Defines the types of filters available for each EQ band.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Enum, EnumIter, Serialize, Deserialize, Default, Display,
 )]
 #[allow(dead_code)]
 pub enum FilterType {
+    /// A peaking filter that boosts or cuts a frequency range.
     #[default]
     Peak,
+    /// A low-shelf filter that boosts or cuts frequencies below the cutoff.
     LowShelf,
+    /// A high-shelf filter that boosts or cuts frequencies above the cutoff.
     HighShelf,
+    /// A low-pass filter that passes frequencies below the cutoff.
     LowPass,
+    /// A high-pass filter that passes frequencies above the cutoff.
     HighPass,
+    /// A band-pass filter that passes frequencies within a certain range.
     BandPass,
+    /// A notch filter that cuts a narrow frequency band.
     Notch,
+    /// An all-pass filter that changes the phase relationship of frequencies.
     AllPass,
 }
 
+/// Configuration for a single band of the parametric EQ.
 #[derive(Debug, Clone, Copy)]
 pub struct BandConfig {
+    /// The type of filter for the band.
     pub filter_type: FilterType,
+    /// The center or cutoff frequency of the filter in Hz.
     pub center_freq: f32,
+    /// The Q factor of the filter, which determines its bandwidth.
     pub q: f32,
+    /// The gain of the filter in decibels (dB).
     pub gain_db: f32,
+    /// Whether the band is currently enabled.
     pub enabled: bool,
 }
 
+/// A single biquad filter, representing one band of the parametric EQ.
 pub struct BiquadFilter {
+    /// The biquad filter implementation.
     filter: DirectForm2Transposed<f32>,
+    /// The coefficients of the biquad filter.
     coeffs: Coefficients<f32>,
+    /// Whether the filter is currently enabled.
     pub enabled: bool,
 }
 
@@ -62,6 +81,15 @@ impl Clone for BiquadFilter {
 }
 
 impl BiquadFilter {
+    /// Creates a new `BiquadFilter`.
+    ///
+    /// # Arguments
+    ///
+    /// * `initial_sample_rate` - The initial sample rate for the filter.
+    ///
+    /// # Returns
+    ///
+    /// A new `BiquadFilter` instance, initialized as a disabled peaking EQ.
     pub fn new(initial_sample_rate: f32) -> Self {
         let coeffs = Coefficients::<f32>::from_params(
             Type::PeakingEQ(0.0),
@@ -77,14 +105,29 @@ impl BiquadFilter {
         }
     }
 
+    /// Resets the internal state of the filter.
     pub fn reset_state(&mut self) {
         self.filter.reset_state();
     }
 
+    /// Enables or disables the filter.
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - A boolean indicating whether the filter should be enabled.
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
+    /// Updates the filter's coefficients based on new parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `filter_type` - The new type of the filter.
+    /// * `sample_rate` - The current sample rate.
+    /// * `center_freq` - The new center frequency.
+    /// * `q` - The new Q factor.
+    /// * `gain_db` - The new gain in dB.
     pub fn update_coeffs(
         &mut self,
         filter_type: FilterType,
@@ -115,6 +158,17 @@ impl BiquadFilter {
         self.coeffs = coeffs;
     }
 
+    /// Processes a single audio sample.
+    ///
+    /// If the filter is disabled, it returns the input sample unchanged.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_sample` - The input audio sample.
+    ///
+    /// # Returns
+    ///
+    /// The processed audio sample.
     #[inline]
     pub fn process_sample(&mut self, input_sample: f32) -> f32 {
         if !self.enabled {
@@ -124,13 +178,27 @@ impl BiquadFilter {
     }
 }
 
+/// A stereo parametric equalizer with a configurable number of bands.
 pub struct StereoParametricEQ {
+    /// The biquad filters for the left channel.
     bands_left: Vec<BiquadFilter>,
+    /// The biquad filters for the right channel.
     bands_right: Vec<BiquadFilter>,
+    /// The number of bands in the EQ.
     num_bands: usize,
 }
 
 impl StereoParametricEQ {
+    /// Creates a new `StereoParametricEQ`.
+    ///
+    /// # Arguments
+    ///
+    /// * `num_bands` - The number of EQ bands to create.
+    /// * `initial_sample_rate` - The initial sample rate for the EQ.
+    ///
+    /// # Returns
+    ///
+    /// A new `StereoParametricEQ` instance.
     pub fn new(num_bands: usize, initial_sample_rate: f32) -> Self {
         Self {
             bands_left: (0..num_bands)
@@ -143,6 +211,13 @@ impl StereoParametricEQ {
         }
     }
 
+    /// Updates the coefficients for a specific band in both channels.
+    ///
+    /// # Arguments
+    ///
+    /// * `band_idx` - The index of the band to update.
+    /// * `sample_rate` - The current sample rate.
+    /// * `config` - The new configuration for the band.
     pub fn update_band_coeffs(&mut self, band_idx: usize, sample_rate: f32, config: &BandConfig) {
         if band_idx < self.num_bands {
             self.bands_left[band_idx].update_coeffs(
@@ -165,6 +240,14 @@ impl StereoParametricEQ {
         }
     }
 
+    /// Processes a block of stereo audio data.
+    ///
+    /// The processing is done in place on the provided buffers.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_left` - The mutable buffer for the left channel.
+    /// * `input_right` - The mutable buffer for the right channel.
     pub fn process_block(&mut self, input_left: &mut [f32], input_right: &mut [f32]) {
         for i in 0..input_left.len() {
             let mut sample_l = input_left[i];
@@ -180,6 +263,7 @@ impl StereoParametricEQ {
         }
     }
 
+    /// Resets the internal state of all filter bands for both channels.
     pub fn reset_all_bands_state(&mut self) {
         for band in self.bands_left.iter_mut() {
             band.reset_state();
@@ -189,6 +273,16 @@ impl StereoParametricEQ {
         }
     }
 
+    /// Calculates the combined frequency response of all enabled EQ bands.
+    ///
+    /// # Arguments
+    ///
+    /// * `sample_rate` - The sample rate to use for the calculation.
+    /// * `frequencies` - A slice of frequencies at which to calculate the response.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<f32>` containing the magnitude response at each frequency.
     #[allow(dead_code)]
     pub fn calculate_frequency_response(&self, sample_rate: f32, frequencies: &[f32]) -> Vec<f32> {
         let mut response = vec![1.0; frequencies.len()];

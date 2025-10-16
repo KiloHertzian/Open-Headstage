@@ -2,7 +2,7 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may a copy of the License at
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Open Headstage Standalone Executable
+//!
+//! This is the main entry point for the standalone version of the Open Headstage plugin.
+//!
+//! It uses the `nih_export_standalone` function from the `nih_plug` framework to
+//! wrap the main `OpenHeadstagePlugin` struct in a standalone application host. This allows
+//! the plugin to be run as a desktop application without needing a separate DAW.
+
 use nih_plug::prelude::*;
 use open_headstage::OpenHeadstagePlugin;
 
+/// The main function that launches the standalone application.
 fn main() {
     nih_export_standalone::<OpenHeadstagePlugin>();
 }

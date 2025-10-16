@@ -18,34 +18,63 @@ use rustfft::num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::sync::Arc;
 
-// Configuration for partitioned convolution
-const BLOCK_SIZE: usize = 512; // Internal processing block size
-const FFT_SIZE: usize = BLOCK_SIZE * 2; // FFT size, typically 2 * block_size for 50% overlap-add
+/// The internal processing block size for the convolution engine.
+/// This defines the size of audio chunks processed at one time.
+const BLOCK_SIZE: usize = 512;
+
+/// The size of the Fast Fourier Transform (FFT).
+/// For 50% overlap-add convolution, this is typically twice the block size.
+const FFT_SIZE: usize = BLOCK_SIZE * 2;
 
 /// Enum to identify one of the four convolution paths in a binaural setup.
+///
+/// This is used to specify which impulse response to set or modify.
+/// - `Lsl`: Left source to left ear.
+/// - `Lsr`: Left source to right ear.
+/// - `Rsl`: Right source to left ear.
+/// - `Rsr`: Right source to right ear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum ConvolutionPath {
+    /// Left source to left ear.
     Lsl,
+    /// Left source to right ear.
     Lsr,
+    /// Right source to left ear.
     Rsl,
+    /// Right source to right ear.
     Rsr,
 }
 
 /// Holds the data for a single convolution path, adapted for partitioned convolution.
+///
+/// This struct contains the frequency-domain representation of the impulse response (IR)
+/// partitions, a history of input signal FFTs, and the overlap buffer for the overlap-add method.
 #[derive(Debug, Clone)]
 struct ConvolutionPathData {
+    /// The FFTs of the impulse response, partitioned into blocks.
     ir_fft_partitions: Vec<Vec<Complex<f32>>>,
+    /// A history of the FFTs of the input signal blocks.
     input_fft_history: Vec<Vec<Complex<f32>>>,
+    /// The current index in the input history buffer (circular buffer).
     history_index: usize,
+    /// The buffer for the overlap-add method.
     overlap_buffer: Vec<f32>,
 }
 
 impl ConvolutionPathData {
+    /// Creates a new `ConvolutionPathData` with a silent impulse response.
+    ///
+    /// # Arguments
+    ///
+    /// * `fft_plan` - A reference to the FFT plan to be used for the initial IR processing.
+    ///
+    /// # Returns
+    ///
+    /// A new `ConvolutionPathData` instance initialized for silence.
     fn new(fft_plan: &Arc<dyn Fft<f32>>) -> Self {
-        // Default to a single partition representing silence (or passthrough if IR is [1.0])
+        // Default to a single partition representing silence.
         let default_ir = vec![0.0f32; BLOCK_SIZE];
-        // default_ir[0] = 1.0; // for passthrough
 
         let mut padded_ir = default_ir;
         padded_ir.resize(FFT_SIZE, 0.0);
@@ -65,25 +94,40 @@ impl ConvolutionPathData {
 }
 
 /// Manages four convolution paths for binaural processing using partitioned convolution.
+///
+/// This engine is responsible for applying impulse responses to stereo audio signals
+/// to simulate a binaural listening experience. It uses the overlap-add method
+/// with partitioned convolution to efficiently process long impulse responses in real-time.
 #[derive(Clone)]
 pub struct ConvolutionEngine {
+    /// An array holding the data for the four convolution paths (LSL, LSR, RSL, RSR).
     paths: [ConvolutionPathData; 4],
-
+    /// The FFT plan for the forward transform (time to frequency domain).
     forward_fft: Arc<dyn Fft<f32>>,
+    /// The FFT plan for the inverse transform (frequency to time domain).
     inverse_fft: Arc<dyn Fft<f32>>,
-
-    // Buffers for handling variable host block sizes
+    /// A buffer for the left input channel to handle variable host block sizes.
     input_buffer_l: Vec<f32>,
+    /// A buffer for the right input channel to handle variable host block sizes.
     input_buffer_r: Vec<f32>,
+    /// A buffer for the left output channel.
     output_buffer_l: Vec<f32>,
+    /// A buffer for the right output channel.
     output_buffer_r: Vec<f32>,
-
-    // Temporary buffers for FFT processing
+    /// A temporary buffer for FFT processing of the input signal.
     input_fft_buffer: Vec<Complex<f32>>,
+    /// An accumulator for the results of the frequency-domain multiplication.
     conv_accumulator: Vec<Complex<f32>>,
 }
 
 impl ConvolutionEngine {
+    /// Creates a new `ConvolutionEngine`.
+    ///
+    /// Initializes the FFT plans and sets up the four convolution paths with silent IRs.
+    ///
+    /// # Returns
+    ///
+    /// A new `ConvolutionEngine` instance.
     pub fn new() -> Self {
         let mut planner = FftPlanner::<f32>::new();
         let forward_fft = planner.plan_fft_forward(FFT_SIZE);
@@ -107,12 +151,21 @@ impl ConvolutionEngine {
         }
     }
 
+    /// Sets the impulse response for a specific convolution path.
+    ///
+    /// The provided IR data is partitioned, and each partition is transformed into the
+    /// frequency domain using an FFT.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The `ConvolutionPath` to set the IR for.
+    /// * `ir_data` - A slice containing the time-domain impulse response data.
     #[allow(dead_code)]
     pub fn set_ir(&mut self, path: ConvolutionPath, ir_data: &[f32]) {
         let path_data = &mut self.paths[path as usize];
 
         if ir_data.is_empty() {
-            // Handle empty IR (mute)
+            // Handle empty IR (mute) by setting a single silent partition.
             let mut silent_part = vec![Complex::new(0.0, 0.0); FFT_SIZE];
             self.forward_fft.process(&mut silent_part);
             path_data.ir_fft_partitions = vec![silent_part];
@@ -132,12 +185,24 @@ impl ConvolutionEngine {
                 .collect();
         }
 
+        // Reset the history and overlap buffers for the new IR.
         let num_partitions = path_data.ir_fft_partitions.len();
         path_data.input_fft_history = vec![vec![Complex::new(0.0, 0.0); FFT_SIZE]; num_partitions];
         path_data.history_index = 0;
         path_data.overlap_buffer.iter_mut().for_each(|s| *s = 0.0);
     }
 
+    /// Processes a block of stereo audio data.
+    ///
+    /// This method handles buffering to accommodate variable host block sizes and then
+    /// processes the audio in fixed-size internal blocks.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_left` - The left channel input audio data.
+    /// * `input_right` - The right channel input audio data.
+    /// * `output_left` - The mutable slice to write the left channel output to.
+    /// * `output_right` - The mutable slice to write the right channel output to.
     pub fn process_block(
         &mut self,
         input_left: &[f32],
@@ -149,6 +214,7 @@ impl ConvolutionEngine {
         self.input_buffer_l.extend_from_slice(input_left);
         self.input_buffer_r.extend_from_slice(input_right);
 
+        // Process audio in fixed-size chunks (BLOCK_SIZE).
         while self.input_buffer_l.len() >= BLOCK_SIZE {
             let input_chunk_l = self.input_buffer_l.drain(..BLOCK_SIZE).collect::<Vec<_>>();
             let input_chunk_r = self.input_buffer_r.drain(..BLOCK_SIZE).collect::<Vec<_>>();
@@ -160,6 +226,7 @@ impl ConvolutionEngine {
             self.output_buffer_r.extend_from_slice(&processed_r);
         }
 
+        // Copy the processed samples to the output buffers.
         if self.output_buffer_l.len() >= num_samples {
             output_left.copy_from_slice(
                 &self
@@ -174,13 +241,25 @@ impl ConvolutionEngine {
                     .collect::<Vec<_>>(),
             );
         } else {
-            // This case should ideally not be hit if input/output lengths match,
-            // but as a fallback, output silence to prevent weird audio artifacts.
+            // Fallback: output silence if not enough samples were processed.
             output_left.fill(0.0);
             output_right.fill(0.0);
         }
     }
 
+    /// Processes a single internal block of audio data.
+    ///
+    /// This method performs the convolution for all four paths and sums the results
+    /// to produce the final stereo output.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_l` - The left channel input chunk.
+    /// * `input_r` - The right channel input chunk.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the processed left and right output chunks.
     fn process_internal_block(&mut self, input_l: &[f32], input_r: &[f32]) -> (Vec<f32>, Vec<f32>) {
         let mut out_l = vec![0.0; BLOCK_SIZE];
         let mut out_r = vec![0.0; BLOCK_SIZE];
@@ -225,14 +304,31 @@ impl ConvolutionEngine {
             (lsl, lsr, rsl, rsr)
         };
 
+        // Mix the results from the four paths.
         for i in 0..BLOCK_SIZE {
-            out_l[i] = lsl[i] + rsl[i];
-            out_r[i] = lsr[i] + rsr[i];
+            out_l[i] = lsl[i] + rsl[i]; // Left output = Lsl + Rsl
+            out_r[i] = lsr[i] + rsr[i]; // Right output = Lsr + Rsr
         }
         (out_l, out_r)
     }
 }
 
+/// Performs partitioned convolution for a single path.
+///
+/// This function implements the core overlap-add algorithm for one channel.
+///
+/// # Arguments
+///
+/// * `input_signal` - The current block of the input signal.
+/// * `path_data` - The mutable `ConvolutionPathData` for the path being processed.
+/// * `forward_fft` - The forward FFT plan.
+/// * `inverse_fft` - The inverse FFT plan.
+/// * `input_fft_buffer` - A buffer to hold the FFT of the input signal.
+/// * `conv_accumulator` - A buffer to accumulate the convolution results.
+///
+/// # Returns
+///
+/// A `Vec<f32>` containing the processed output block.
 fn convolve_path_partitioned(
     input_signal: &[f32],
     path_data: &mut ConvolutionPathData,
@@ -241,26 +337,20 @@ fn convolve_path_partitioned(
     input_fft_buffer: &mut [Complex<f32>],
     conv_accumulator: &mut [Complex<f32>],
 ) -> Vec<f32> {
-    // 1. FFT the current input block
+    // 1. FFT the current input block.
     for (i, sample) in input_signal.iter().enumerate() {
         input_fft_buffer[i] = Complex::new(*sample, 0.0);
     }
-    for val in input_fft_buffer
-        .iter_mut()
-        .skip(BLOCK_SIZE)
-        .take(FFT_SIZE - BLOCK_SIZE)
-    {
+    for val in input_fft_buffer.iter_mut().skip(BLOCK_SIZE) {
         *val = Complex::new(0.0, 0.0);
     }
     forward_fft.process(input_fft_buffer);
 
-    // 2. Store in history and advance index
+    // 2. Store the FFT'd input in the history buffer.
     path_data.input_fft_history[path_data.history_index] = input_fft_buffer.to_vec();
 
-    // 3. Perform convolution with all partitions
-    conv_accumulator
-        .iter_mut()
-        .for_each(|c| *c = Complex::new(0.0, 0.0));
+    // 3. Perform frequency-domain multiplication for all partitions.
+    conv_accumulator.iter_mut().for_each(|c| *c = Complex::new(0.0, 0.0));
     let num_partitions = path_data.ir_fft_partitions.len();
     for i in 0..num_partitions {
         let history_idx = (path_data.history_index + num_partitions - i) % num_partitions;
@@ -272,17 +362,18 @@ fn convolve_path_partitioned(
         }
     }
 
-    // 4. Inverse FFT
+    // 4. Inverse FFT to get the convolved signal.
     inverse_fft.process(conv_accumulator);
 
-    // 5. Overlap-add
+    // 5. Overlap-add with the previous block's overlap.
     let mut output = vec![0.0; BLOCK_SIZE];
-    let scale = 1.0 / FFT_SIZE as f32;
+    let scale = 1.0 / FFT_SIZE as f32; // FFT normalization factor.
     for i in 0..BLOCK_SIZE {
         output[i] = conv_accumulator[i].re * scale + path_data.overlap_buffer[i];
         path_data.overlap_buffer[i] = conv_accumulator[i + BLOCK_SIZE].re * scale;
     }
 
+    // 6. Advance the history index for the next block.
     path_data.history_index = (path_data.history_index + 1) % num_partitions;
 
     output

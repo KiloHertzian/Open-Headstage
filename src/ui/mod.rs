@@ -12,4 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # User Interface Components
+//!
+//! This module contains all the custom UI components built with `egui` for the
+//! plugin's editor.
+//!
+//! - `speaker_visualizer`: A widget to display the virtual speaker layout.
+
 pub mod speaker_visualizer;
