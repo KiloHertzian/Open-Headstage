@@ -14,4 +14,14 @@
 
 // src/sofa/mod.rs
 
+//! # SOFA File Handling
+//!
+//! This module provides the functionality for loading and interacting with
+//! Spatially Oriented Format for Acoustics (SOFA) files. These files contain
+//! Head-Related Impulse Responses (HRIRs) which are essential for creating
+//! realistic binaural audio simulations.
+//!
+//! The core of this module is the `loader` submodule, which contains a safe
+//! wrapper around the `libmysofa` C library.
+
 pub mod loader;
